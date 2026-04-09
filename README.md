@@ -50,7 +50,11 @@
 ## 📲 Getting Started
 TaraTren is currently in **Alpha**, and is available for Android devices via direct APK installation.
 
-### How to Install
+### Platform Support
+*   **Android**: Available now using the link above.
+*   **iOS**: Coming soon to TestFlight. (Currently requires building from source).
+
+### How to Install (Android)
 1.  **Download the APK**: Click the [Download Latest APK](releases/TaraTren_v0.2.1.apk) link at the top of this page.
 2.  **Enable Unknown Sources**: If prompted, allow your browser or file manager to install apps from unknown sources (Settings > Security > Install Unknown Apps).
 3.  **Install & Launch**: Open the downloaded `.apk` file and follow the on-screen prompts.
