@@ -14,10 +14,10 @@
 
 ### 🛤️ Unified Rail Dashboard
 *   **LRT-1, LRT-2, MRT-3, and PNR (Soon!):** Real-time visibility of all operating lines in one place.
-*   **Station Details:** Access accessibility information (Elevators, Escalators), nearby landmarks, and platform side directions (Door opening side).
+*   **Station Details:** Access accessibility information (Elevators, Escalators), nearby landmarks, connecting routes and platform side directions (Door opening side).
 
 ### 👥 Community-Driven Insights
-*   **Live Crowd Density:** Know if a station is "Light," "Moderate," or "Heavy" before you even arrive.
+*   **Live Crowd Density:** Know if a station is "Light," "Moderate," or "Heavy" before you even arrive. (Not fuction well as of now)
 *   **Social Pulse:** Report and view live community status updates directly from fellow commuters.
 *   **Peak Hour Intelligence:** Data-driven charts suggesting the best times to travel.
 
@@ -47,30 +47,14 @@
 
 ---
 
-## 🚀 Getting Started
+## 📲 Getting Started
+TaraTren is currently in **Alpha**, and is available for Android devices via direct APK installation.
 
-### Prerequisites
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- A Firebase Project (for real-time features)
-
-### Installation
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/YourUsername/TaraTren.git
-    cd TaraTren
-    ```
-2.  **Install dependencies:**
-    ```bash
-    flutter pub get
-    ```
-3.  **Setup Firebase:**
-    - Register your app on [Firebase Console](https://console.firebase.google.com/).
-    - Download `google-services.json` and place it in `android/app/`.
-    - Download `GoogleService-Info.plist` and place it in `ios/Runner/`.
-4.  **Run the app:**
-    ```bash
-    flutter run
-    ```
+### How to Install
+1.  **Download the APK**: Click the [Download Latest APK](releases/TaraTren_v0.2.1.apk) link at the top of this page.
+2.  **Enable Unknown Sources**: If prompted, allow your browser or file manager to install apps from unknown sources (Settings > Security > Install Unknown Apps).
+3.  **Install & Launch**: Open the downloaded `.apk` file and follow the on-screen prompts.
+4.  **Safe Travels!**: Open TaraTren and start tracking your commute.
 
 ---
 
