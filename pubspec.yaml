@@ -1,0 +1,79 @@
+name: tara_tren
+description: A train navigation app for Metro Manila.
+publish_to: 'none'
+version: 0.2.1+28
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  intl: ^0.19.0
+  geolocator: ^13.0.1
+  flutter_local_notifications: ^17.1.2
+  firebase_core: ^3.11.0
+  cloud_firestore: ^5.6.5
+  firebase_auth: ^5.0.0
+  google_sign_in: ^6.2.1
+  flutter_tts: ^3.8.3
+  flutter_background_service: ^5.1.0
+  flutter_background_service_android: ^6.3.1
+  shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.13.1
+  cached_network_image: ^3.4.1
+  flutter_activity_recognition: ^4.0.0
+  firebase_database: ^11.3.10
+  app_settings: ^7.0.0
+  sqflite: ^2.4.2
+  path_provider: ^2.1.5
+  path: ^1.9.1
+  http: ^1.6.0
+  audioplayers: ^6.6.0
+  flutter_overlay_window: ^0.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/TaraTrain_Logo.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/image/TaraTrain_Logo.png
+    - assets/image/LRTA_FB.png
+    - assets/image/LRT-2.jpg
+    - assets/image/PNR_Logo.png
+    - assets/image/bg.png
+    - assets/image/LRTA.png
+    - assets/image/MRT3.jpg
+    - assets/image/Stations/LRT1/
+    - assets/image/Stations/LRT2/
+    - assets/image/Stations/MRT3/
+    - assets/image/Stations/MRT7/
+    - assets/image/Stations/NSCR/
+    - assets/image/MRT7.png
+    - assets/image/QuezonCityBusService.png
+    - assets/image/Trains/LRT1-G1.jpg
+    - assets/image/Trains/LRT1-G2.jpg
+    - assets/image/Trains/LRT1-G3.jpg
+    - assets/image/Trains/LRT1-G4.jpg
+    - assets/image/Trains/LRT2-2000.jpg
+    - assets/image/Trains/MRT3-Tatra.jpg
+    - assets/image/Trains/MRT3-Dalian.jpg
+    - assets/image/Trains/MRT-7_trains_2021.png
+    - assets/image/Trains/NSCR-EMU100000.jpg
+    - assets/image/meh.jpg
+    - assets/voice_announcements/LRT1/
+    - assets/geojson/

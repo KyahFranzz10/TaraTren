@@ -1,0 +1,58 @@
+﻿Analyzing TaraTren...                                           
+
+   info - Statements in an if should be enclosed in a block - lib\data\track_data.dart:6:29 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\data\track_data.dart:7:34 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\data\track_data.dart:8:34 - curly_braces_in_flow_control_structures
+   info - Use 'const' for final variables initialized to a constant value - lib\data\track_data.dart:15:5 - prefer_const_declarations
+   info - Use 'const' for final variables initialized to a constant value - lib\data\track_data.dart:16:5 - prefer_const_declarations
+   info - Use 'const' with the constructor to improve performance - lib\screens\changelog_screen.dart:163:25 - prefer_const_constructors
+   info - Use 'const' for final variables initialized to a constant value - lib\screens\feedback_screen.dart:35:5 - prefer_const_declarations
+   info - Statements in an if should be enclosed in a block - lib\screens\future_lines_screen.dart:430:54 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\future_lines_screen.dart:431:59 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\future_lines_screen.dart:432:59 - curly_braces_in_flow_control_structures
+   info - Use 'const' with the constructor to improve performance - lib\screens\live_train_tracker_screen.dart:461:9 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\main_navigation_screen.dart:54:16 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\screens\main_navigation_screen.dart:56:21 - prefer_const_literals_to_create_immutables
+   info - Unnecessary braces in a string interpolation - lib\screens\map_screen.dart:147:33 - unnecessary_brace_in_string_interps
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\screens\map_screen.dart:454:28 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\screens\map_screen.dart:454:29 - prefer_const_constructors
+   info - Unnecessary braces in a string interpolation - lib\screens\map_screen.dart:525:19 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\screens\map_screen.dart:525:28 - unnecessary_brace_in_string_interps
+   info - Statements in an if should be enclosed in a block - lib\screens\news_feed_screen.dart:385:23 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\news_feed_screen.dart:558:7 - curly_braces_in_flow_control_structures
+   info - The private field _fuelEfficiency could be 'final' - lib\screens\savings_comparison_screen.dart:22:10 - prefer_final_fields
+   info - Use 'const' with the constructor to improve performance - lib\screens\savings_comparison_screen.dart:349:103 - prefer_const_constructors
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings_screen.dart:58:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings_screen.dart:182:38 - use_build_context_synchronously
+   info - Use 'const' with the constructor to improve performance - lib\screens\settings_screen.dart:248:17 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\settings_screen.dart:250:26 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\settings_screen.dart:253:17 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\splash_screen.dart:103:13 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\splash_screen.dart:104:22 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\splash_screen.dart:106:24 - prefer_const_constructors
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:35:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:82:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:102:7 - avoid_print
+   info - Statements in an if should be enclosed in a block - lib\services\background_tracking_service.dart:181:38 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\background_tracking_service.dart:182:43 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\background_tracking_service.dart:183:44 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\background_tracking_service.dart:184:44 - curly_braces_in_flow_control_structures
+warning - The left operand can't be null, so the right operand is never executed - lib\services\location_service.dart:632:27 - dead_null_aware_expression
+warning - The receiver can't be null, so the null-aware operator '?[' is unnecessary - lib\services\location_service.dart:704:31 - invalid_null_aware_operator
+   info - Use 'const' with the constructor to improve performance - lib\services\notification_service.dart:339:25 - prefer_const_constructors
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:170:70 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:171:75 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:172:75 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:182:45 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:183:46 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:184:50 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\transit_alert_service.dart:185:96 - curly_braces_in_flow_control_structures
+   info - Use 'const' with the constructor to improve performance - lib\widgets\app_drawer.dart:173:22 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\widgets\app_drawer.dart:175:27 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\widgets\dynamic_island_overlay.dart:206:27 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\widgets\dynamic_island_overlay.dart:208:27 - prefer_const_constructors
+   info - Unnecessary use of string interpolation - lib\widgets\system_dynamic_island.dart:252:103 - unnecessary_string_interpolations
+   info - Statements in an if should be enclosed in a block - lib\widgets\system_dynamic_island.dart:327:34 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\system_dynamic_island.dart:328:39 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\system_dynamic_island.dart:329:39 - curly_braces_in_flow_control_structures
+
