@@ -52,7 +52,8 @@ TaraTren is currently in **Alpha**, and is available for Android devices via dir
 
 ### Platform Support
 *   **Android**: Available now using the link above.
-*   **iOS**: Coming soon to TestFlight. (Currently requires building from source).
+*   **iOS / Web**: Available via [TaraTren Web](https://KyahFranzz10.github.io/TaraTren). 
+    *   *Tip: On iOS, open in Safari and tap "Add to Home Screen" for a full-screen experience.*
 
 ### How to Install (Android)
 1.  **Download the APK**: Click the [Download Latest APK](releases/TaraTren_v0.2.1.apk) link at the top of this page.
