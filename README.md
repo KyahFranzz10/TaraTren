@@ -13,7 +13,7 @@
 ## 🌟 Key Features
 
 ### 🛤️ Unified Rail Dashboard
-*   **LRT-1, LRT-2, MRT-3, and PNR:** Real-time visibility of all operating lines in one place.
+*   **LRT-1, LRT-2, MRT-3, and PNR (Soon!):** Real-time visibility of all operating lines in one place.
 *   **Station Details:** Access accessibility information (Elevators, Escalators), nearby landmarks, and platform side directions (Door opening side).
 
 ### 👥 Community-Driven Insights
