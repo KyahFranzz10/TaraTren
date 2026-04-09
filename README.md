@@ -1,4 +1,8 @@
 # 🚆 Tara Tren
+<p align="center">
+  <img src="assets/image/Gemini_Generated_Image_wfqe9iwfqe9iwfqe.png" alt="Tara Tren Banner" width="100%">
+</p>
+
 > **Your Unified Transit Companion for Metro Manila.**
 
 **TaraTren** is a modern, community-driven mobile application designed to simplify the commuting experience across the Philippines' capital. It consolidates all major rail lines, provides real-time crowd insights, and visualizes the future of Manila's transit expansion.
