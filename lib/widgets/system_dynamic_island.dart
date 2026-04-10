@@ -21,6 +21,7 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
   bool _isExpanded = false;
   bool _isArrivalAlert = false;
   bool _wasAutoExpanded = false;
+  bool _isClosed = false;
 
   late AnimationController _colorController;
   late Animation<Color?> _colorAnimation;
@@ -101,6 +102,33 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
         animation: _colorAnimation,
         builder: (context, child) {
           final activeColor = _colorAnimation.value ?? _getLineColor(_line);
+          
+          if (_isClosed) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 90),
+                GestureDetector(
+                  onTap: () => setState(() => _isClosed = false),
+                  onLongPress: () => FlutterOverlayWindow.closeOverlay(),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D0D0D),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 1),
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8)],
+                    ),
+                    child: Center(
+                      child: Icon(Icons.directions_transit, color: activeColor, size: 22),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -116,7 +144,6 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
                     duration: const Duration(milliseconds: 400),
                     curve: Curves.elasticOut,
                     width: _isExpanded ? 350 : 200,
-                    height: _isExpanded ? 165 : 52,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D0D0D),
@@ -192,13 +219,21 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => setState(() => _isExpanded = false),
+                                  child: const Icon(Icons.keyboard_arrow_up, color: Colors.white54, size: 18),
+                                ),
                                 const SizedBox(width: 8),
                                 GestureDetector(
-                                  onTap: () => FlutterOverlayWindow.closeOverlay(),
-                                  child: const Icon(Icons.close, color: Colors.white38, size: 14),
+                                  onTap: () => setState(() {
+                                    _isClosed = true;
+                                    _isExpanded = false;
+                                  }),
+                                  child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
                                 ),
-                               ],
-                             ),
+                              ],
+                            ),
                              const SizedBox(height: 10),
                              Row(
                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,7 +288,7 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
                                         ),
                                       ),
                                     )
-                                  : Row(
+                                    : Row(
                                       key: const ValueKey("metrics"),
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
@@ -269,12 +304,14 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
                       ),
                     ),
                     if (!_isExpanded)
-                      const PulseIndicator()
-                    else
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white38, size: 18),
-                        onPressed: () => setState(() => _isExpanded = false),
-                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const PulseIndicator(),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 18),
+                        ],
+                      )
                   ],
                 ),
               ),

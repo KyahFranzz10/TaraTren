@@ -5,10 +5,23 @@ class ChangelogScreen extends StatelessWidget {
 
   static const List<_ChangelogVersion> _versions = [
     _ChangelogVersion(
-      version: 'V0.1.24-Alpha',
-      date: 'April 7, 2026',
+      version: 'V0.2.2-Alpha',
+      date: 'April 10, 2026',
       tag: 'LATEST',
       tagColor: Color(0xFF10B981),
+      entries: [
+        _ChangelogEntry(Icons.campaign, 'Smart Advisory Alerts', 'News feed scraper now intelligently detects critical operational issues (e.g. Technical Issue, LRTAdvisory) and pushes proactive system alerts.', _EntryType.feature),
+        _ChangelogEntry(Icons.picture_in_picture_alt, 'Unified Dynamic Island', 'Combined the in-app and system-wide Dynamic Islands into a single high-performance overlay for universal UI consistency.', _EntryType.feature),
+        _ChangelogEntry(Icons.transfer_within_a_station, 'Walkway Transfer Detection', 'The tracking overlay now explicitly brands transit walkways as "Transfer" and shifts colors visually from origin to destination lines.', _EntryType.feature),
+        _ChangelogEntry(Icons.power_settings_new, 'Persistent Island Standby', 'Spawning the Dynamic Island manually will cause it to persistently sit in Standby instead of auto-hiding when offboard.', _EntryType.improvement),
+        _ChangelogEntry(Icons.speed, 'Clarified LIVE Metrics', 'Explicitly updated the telemetry dashboard descriptors below the dynamic tracker to ensure speed and distances are clearly labeled.', _EntryType.improvement),
+      ],
+    ),
+    _ChangelogVersion(
+      version: 'V0.1.24-Alpha',
+      date: 'April 7, 2026',
+      tag: 'PREVIOUS',
+      tagColor: Color(0xFF6B7280),
       entries: [
         _ChangelogEntry(Icons.sensors_rounded, 'True Real-Time Arrivals', 'Merged crowdsourced GPS tracking into station ETAs. Live trains now override simulated schedules for 100% accuracy.', _EntryType.feature),
         _ChangelogEntry(Icons.record_voice_over_rounded, 'Francis Voice Pack', 'Added custom station announcements recorded by the developer specifically for the LRT-1 line.', _EntryType.feature),

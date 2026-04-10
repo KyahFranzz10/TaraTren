@@ -251,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 SizedBox(height: 12),
                 const Text(
-                  'v0.2.1-Alpha',
+                  'v0.2.2-Alpha',
                   style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 12),

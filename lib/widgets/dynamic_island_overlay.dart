@@ -90,7 +90,30 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
         ValueListenableBuilder<bool>(
           valueListenable: LocationService().isOnboard,
           builder: (context, isOnboard, _) {
-            if (!isOnboard || _forceHidden) return const SizedBox.shrink();
+            if (!isOnboard) return const SizedBox.shrink();
+
+            if (_forceHidden) {
+              return Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => setState(() => _forceHidden = false),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D0D0D),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white24, width: 1),
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8)],
+                    ),
+                    child: Center(
+                      child: Icon(Icons.directions_transit, color: _getLineColor(LocationService().onboardLine.value ?? ''), size: 22),
+                    ),
+                  ),
+                ),
+              );
+            }
 
             return ValueListenableBuilder<String?>(
               valueListenable: LocationService().onboardLine,
@@ -107,7 +130,7 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
                         setState(() => _forceHidden = true);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text("Island hidden until next trip"),
+                            content: Text("Island minimized. Tap the top-right bubble to restore it."),
                             duration: Duration(seconds: 2),
                           ),
                         );
@@ -134,7 +157,10 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
                               ],
                             ),
                             clipBehavior: Clip.antiAlias,
-                            child: _buildIslandContent(line, lineCol),
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: _buildIslandContent(line, lineCol),
+                            ),
                           );
                         },
                       ),
@@ -173,16 +199,6 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
                 ),
                 if (!_isExpanded)
                   const _PulseGlow()
-                else
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white38, size: 18),
-                    onPressed: () {
-                      _toggleExpand(false);
-                      setState(() => _forceHidden = true);
-                    },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
               ],
             ),
           ],
@@ -192,18 +208,33 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
   }
 
   Widget _buildCollapsedContent(String? line) {
-    return ValueListenableBuilder<String?>(
-      valueListenable: LocationService().nextStationName,
-      builder: (context, name, _) {
-         return Text(
-          "Next: ${name ?? "Tracking..."}",
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        LocationService().islandStatusLabel,
+        LocationService().nextStationName,
+        LocationService().currentStationOnboard,
+      ]),
+      builder: (context, _) {
+        String? status = LocationService().islandStatusLabel.value;
+        String? nextSt = LocationService().nextStationName.value;
+        String? currentSt = LocationService().currentStationOnboard.value;
+
+        String mini = line?.toUpperCase() ?? "TRANSIT";
+        if (status != null) {
+          String contextSt = status.contains("Next") ? (nextSt ?? "") : (currentSt ?? "");
+          mini = "$status $contextSt";
+        }
+        return Text(
+          mini,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 13,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
           ),
-          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          softWrap: false,
         );
       },
     );
@@ -238,6 +269,19 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
                   ),
                 );
               },
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () => _toggleExpand(false),
+              child: const Icon(Icons.keyboard_arrow_up, color: Colors.white54, size: 18),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                _toggleExpand(false);
+                setState(() => _forceHidden = true);
+              },
+              child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
             ),
           ],
         ),
@@ -284,7 +328,7 @@ class _DynamicIslandOverlayState extends State<DynamicIslandOverlay>
                         valueListenable: LocationService().currentDirection,
                         builder: (context, dir, _) {
                           return Text(
-                            "NEXT/CURRENT",
+                            dir?.toUpperCase() ?? "TRACKING",
                             style: TextStyle(
                               color: lineCol.withValues(alpha: 0.8),
                               fontSize: 7,

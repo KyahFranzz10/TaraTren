@@ -175,7 +175,7 @@ class AppDrawer extends StatelessWidget {
                 children: [
                   const Icon(Icons.history, size: 13, color: Colors.grey),
                   const SizedBox(width: 6),
-                  const Text('V0.2.1-Alpha', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const Text('V0.2.2-Alpha', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 4),
                   const Text('· What\'s New', style: TextStyle(color: Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.w600)),
                 ],

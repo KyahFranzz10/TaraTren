@@ -3,6 +3,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NewsFeedScreen extends StatefulWidget {
   const NewsFeedScreen({super.key});
@@ -151,6 +153,7 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
                 _isLoading = false;
                 _hasError = false;
               });
+              _checkAndNotifyAdvisories(data);
             }
           } catch (e) {
             debugPrint("Scrape Parse Error: $e");
@@ -170,6 +173,49 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
         });
       }
     });
+  }
+
+  Future<void> _checkAndNotifyAdvisories(List<dynamic> posts) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> notifiedPosts = prefs.getStringList('notified_advisories') ?? [];
+    
+    final keywords = [
+      "technical issue",
+      "limited operations",
+      "resumes full operations",
+      "customer advisory",
+      "dotr-mrt-3 advisory",
+      "lrtadvisory"
+    ];
+
+    bool hasNewAdvisory = false;
+
+    for (var post in posts) {
+      final String contentOrig = post['content'].toString();
+      final String contentLow = contentOrig.toLowerCase();
+      
+      final postId = "${post['timestamp']}_${contentOrig.length}";
+      
+      if (notifiedPosts.contains(postId)) continue;
+      
+      bool isAdvisory = keywords.any((k) => contentLow.contains(k));
+      if (isAdvisory) {
+        NotificationService().showScheduleNotification(
+           id: postId.hashCode.abs() % 10000,
+           title: "⚠️ Rail Advisory: ${widget.line}",
+           body: "Critical update found in Official Feed: ${contentOrig.length > 50 ? contentOrig.substring(0, 50) + '...' : contentOrig}",
+        );
+        notifiedPosts.add(postId);
+        hasNewAdvisory = true;
+      }
+    }
+
+    if (hasNewAdvisory) {
+      if (notifiedPosts.length > 50) {
+        notifiedPosts.removeRange(0, notifiedPosts.length - 50);
+      }
+      await prefs.setStringList('notified_advisories', notifiedPosts);
+    }
   }
 
   Future<void> _scrapeData() async {

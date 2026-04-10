@@ -107,7 +107,6 @@ class BackgroundTrackingService {
     String? lastNotifTitle;
     String? lastNotifContent;
     String? lastSpokenNext;
-    String? lastSpokenArriving;
     String? lastReportedStation;
 
     void updateNotification(String title, String content) {
@@ -293,36 +292,35 @@ class BackgroundTrackingService {
               );
 
              if (SettingsService().isVoiceEnabled && !isOnWalkway) {
-                final String sId = nearest!['id'];
-                final String sName = nearest!['name'];
+                final String currentNextId = nextSt['id'] as String;
+                final String currentNextName = nextSt['name'] as String;
 
-                if (distToNext <= 500 && lastReportedStation != nextSt['name']) {
-                  lastReportedStation = nextSt['name'] as String;
+                // Arriving Announcement
+                if (distToNext <= 300 && lastReportedStation != currentNextName) {
+                  lastReportedStation = currentNextName;
                   VoiceService().announceArrival(
-                     stationId: sId, 
-                     stationName: sName, 
+                     stationId: currentNextId, 
+                     stationName: currentNextName, 
                      line: activeTrack,
-                     isTerminus: nearest!['isTerminus'] == true,
-                     opensOnLeft: nearest!['opensOnLeft'] == true,
-                     connections: List<String>.from(nearest!['connections'] ?? []),
+                     isTerminus: nextSt['isTerminus'] == true,
+                     opensOnLeft: nextSt['opensOnLeft'] == true,
+                     connections: List<String>.from(nextSt['connections'] ?? []),
                    );
                 } 
-                // Next Station logic (Dist 350m to 850m)
-                else if (distVal > 350 && distVal < 850 && lastSpokenNext != sId) {
-                   if (speedKph > 12) {
-                     lastSpokenNext = sId;
-                     VoiceService().announceNextStation(
-                       stationId: sId, 
-                       stationName: sName, 
-                       line: activeTrack,
-                     );
-                   }
+                // Next Station Announcement
+                else if (speedKph > 12 && distVal > 150 && distToNext > 300 && lastSpokenNext != currentNextId) {
+                    lastSpokenNext = currentNextId;
+                    VoiceService().announceNextStation(
+                      stationId: currentNextId, 
+                      stationName: currentNextName, 
+                      line: activeTrack,
+                    );
                 }
 
                 // Reset triggers
                 if (distVal > 2000) {
-                  if (lastSpokenArriving == sId) lastSpokenArriving = null;
-                  if (lastSpokenNext == sId) lastSpokenNext = null;
+                  lastReportedStation = null;
+                  lastSpokenNext = null;
                 }
              }
           }

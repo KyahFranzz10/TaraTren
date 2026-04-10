@@ -8,6 +8,7 @@ import '../data/track_data.dart';
 import '../models/station.dart';
 import 'station_detail_screen.dart';
 import '../services/live_train_service.dart';
+import '../services/system_overlay_service.dart';
 import '../services/gtfs_simulation_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
@@ -480,6 +481,34 @@ class _MapScreenState extends State<MapScreen> {
                 child: const Icon(Icons.help_outline, color: Colors.blueGrey),
               ),
               const SizedBox(height: 10),
+              FloatingActionButton(
+                heroTag: 'island_open',
+                mini: true,
+                backgroundColor: Colors.indigo,
+                onPressed: () async {
+                  final lService = LocationService();
+                  lService.manuallyOpenedIsland = true;
+                  await SystemOverlayService().show(
+                    nextStation: lService.nextStationName.value ?? 'Search...',
+                    line: lService.onboardLine.value ?? 'LRT1',
+                    speed: (lService.currentSpeed.value?.toInt() ?? 0),
+                    isArrivalAlert: lService.islandStatusLabel.value?.contains("Arriving") ?? false,
+                    bodyText: lService.islandBodyText.value,
+                    prevStation: lService.prevStationName.value ?? '--',
+                    currentStation: lService.currentStationOnboard.value ?? 'Awaiting Signal',
+                    statusLabel: lService.islandStatusLabel.value ?? 'STANDBY',
+                    distance: lService.distanceToNext.value ?? 0.0,
+                    pace: 'Scan',
+                    isSouthbound: lService.currentDirection.value == 'SOUTHBOUND',
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Dynamic Island Force-Opened!')),
+                    );
+                  }
+                },
+                child: const Icon(Icons.picture_in_picture_alt, color: Colors.white),
+              ),
               FloatingActionButton(
                 heroTag: 'gps', 
                 mini: true, 

@@ -4,7 +4,7 @@
 
 > **Your Unified Transit Companion for Metro Manila.**
 
-### 📥 [Download Latest APK (v0.2.1-Alpha)](releases/TaraTren_v0.2.1.apk)
+### 📥 [Download Latest APK (v0.2.2-Alpha)](releases/TaraTren_v0.2.2.apk)
 
 **TaraTren** is a modern, community-driven mobile application designed to simplify the commuting experience across the Philippines' capital. It consolidates all major rail lines, provides real-time crowd insights, and visualizes the future of Manila's transit expansion.
 
@@ -33,6 +33,7 @@
 *   **Dynamic Island Transit Tracker:** Real-time, system-wide floating overlay (LRT/MRT) inspired by iOS, providing speed, distance-to-next-station, and arrival notifications.
 *   **Custom Voice Pack Announcements:** Bilingual (Tagalog/English) announcements with various personalities (Professional, Casual, Conyo).
 *   **Walking Transfer Guides:** Step-by-step visual paths for seamless line interchanges.
+*   **Smart Advisory Alerts:** Intelligent scraping of real-time technical issues and service disruptions with native device push notifications.
 *   **Speedometer:** Monitor live train speed and pace during your journey.
 
 ---
@@ -56,7 +57,7 @@ TaraTren is currently in **Alpha**, and is available for Android devices via dir
     *   *Tip: On iOS, open in Safari and tap "Add to Home Screen" for a full-screen experience.*
 
 ### How to Install (Android)
-1.  **Download the APK**: Click the [Download Latest APK](releases/TaraTren_v0.2.1.apk) link at the top of this page.
+1.  **Download the APK**: Click the [Download Latest APK](releases/TaraTren_v0.2.2.apk) link at the top of this page.
 2.  **Enable Unknown Sources**: If prompted, allow your browser or file manager to install apps from unknown sources (Settings > Security > Install Unknown Apps).
 3.  **Install & Launch**: Open the downloaded `.apk` file and follow the on-screen prompts.
 4.  **Safe Travels!**: Open TaraTren and start tracking your commute.

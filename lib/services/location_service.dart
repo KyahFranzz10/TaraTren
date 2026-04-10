@@ -10,7 +10,6 @@ import '../models/station.dart';
 import 'system_overlay_service.dart';
 import 'notification_service.dart';
 import 'voice_service.dart';
-import 'test_simulation_service.dart';
 import 'live_train_service.dart';
 import 'settings_service.dart';
 import 'fare_service.dart';
@@ -102,6 +101,7 @@ class LocationService {
   bool _lastTrainSent = false;
   DateTime _scheduleResetDate = DateTime(0);
   int _offboardCount = 0;
+  bool manuallyOpenedIsland = false;
   DateTime? _lastOnboardTime;
 
   final Set<String> favouriteStationIds = {};
@@ -285,9 +285,15 @@ class LocationService {
       }
     }
 
-    final bool onboard = movingOnTrain || transferring || midwayStall || inGracePeriod;
-    final String? lineName = movingOnTrain ? trackLine : onboardLine.value;
-    isTransferring.value = transferring;
+    bool isWalkway = false;
+    final snappedT = TrackData.snapToTransfer(position.latitude, position.longitude);
+    if (snappedT != null && Geolocator.distanceBetween(position.latitude, position.longitude, snappedT.latitude, snappedT.longitude) <= 30.0) {
+       isWalkway = true;
+    }
+
+    final bool onboard = movingOnTrain || transferring || midwayStall || inGracePeriod || isWalkway;
+    final String? lineName = isWalkway ? 'Transfer' : (movingOnTrain ? trackLine : onboardLine.value);
+    isTransferring.value = transferring || isWalkway;
     
     if (onboard) {
        _lastOnboardTime = DateTime.now();
@@ -641,34 +647,40 @@ class LocationService {
 
       _offboardCount = 0;
 
-      // System Island: Only show/update if the app is in the background 
-      // (prevents "doubling" the island while the user is actively using the app)
-      // Special: Allow if simulating so the user can verify the overlay
-      final bool appIsInBackground = WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed;
-      final bool isSimulating = TestSimulationService().isSimulating;
-
-      if (appIsInBackground || isSimulating) {
-        SystemOverlayService().show(
-          nextStation: nextS ?? '--',
-          line: lineName,
-          speed: speedKmH,
-          isArrivalAlert: isApproachingAny,
-          bodyText: isApproachingAny ? approachBody : null,
-          prevStation: pStat ?? '--',
-          currentStation: cStat ?? '--',
-          statusLabel: statusLabel,
-          distance: distVal,
+      // System Island: Always show/update to act as the universal Dynamic Island.
+      SystemOverlayService().show(
+        nextStation: nextS ?? '--',
+        line: lineName,
+        speed: speedKmH,
+        isArrivalAlert: isApproachingAny,
+        bodyText: isApproachingAny ? approachBody : null,
+        prevStation: pStat ?? '--',
+        currentStation: cStat ?? '--',
+        statusLabel: statusLabel,
+        distance: distVal,
           pace: paceVal,
           isSouthbound: isOnRight,
         );
-      } else {
-        // If they returned to the app, we hide the system one to let the in-app one shine
-        SystemOverlayService().hide();
-      }
     } else if (!onboard) {
       _offboardCount++;
       if (_offboardCount > 8) {
-        SystemOverlayService().hide();
+        if (!manuallyOpenedIsland) {
+          SystemOverlayService().hide();
+        } else {
+          SystemOverlayService().show(
+            nextStation: 'Search...',
+            line: 'LRT1',
+            speed: 0,
+            isArrivalAlert: false,
+            bodyText: null,
+            prevStation: '--',
+            currentStation: 'Awaiting Signal',
+            statusLabel: 'STANDBY',
+            distance: 0.0,
+            pace: 'Scan',
+            isSouthbound: true,
+          );
+        }
         nextStationName.value = null;
         prevStationName.value = null;
         currentStationOnboard.value = null;
@@ -679,6 +691,7 @@ class LocationService {
 
     // Update public notifiers for UI (Dynamic Island In-App)
     if (onboard) {
+      manuallyOpenedIsland = false; // Reset lock once they board naturally
       final lStations = metroStations.where((s) => s['line'] == lineName && s['isExtension'] != true).toList();
       lStations.sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
 
@@ -919,20 +932,31 @@ class LocationService {
 
     String? currentLine = onboardLine.value;
     if (currentLine != null) {
-      final snapped = TrackData.snapToTrack(newPos.latitude, newPos.longitude, currentLine);
-      if (snapped != null) {
-        processedPos = Position(
-          latitude: snapped.latitude,
-          longitude: snapped.longitude,
-          timestamp: newPos.timestamp,
-          accuracy: newPos.accuracy,
-          altitude: newPos.altitude,
-          heading: newPos.heading,
-          speed: newPos.speed,
-          speedAccuracy: newPos.speedAccuracy,
-          altitudeAccuracy: newPos.altitudeAccuracy,
-          headingAccuracy: newPos.headingAccuracy,
-        );
+      // PREVENT SNAPPING IF ON WALKWAY
+      final snappedTransfer = TrackData.snapToTransfer(newPos.latitude, newPos.longitude);
+      bool isOnWalkway = false;
+      if (snappedTransfer != null) {
+        if (Geolocator.distanceBetween(newPos.latitude, newPos.longitude, snappedTransfer.latitude, snappedTransfer.longitude) <= 30.0) {
+          isOnWalkway = true;
+        }
+      }
+
+      if (!isOnWalkway) {
+        final snapped = TrackData.snapToTrack(newPos.latitude, newPos.longitude, currentLine);
+        if (snapped != null) {
+          processedPos = Position(
+            latitude: snapped.latitude,
+            longitude: snapped.longitude,
+            timestamp: newPos.timestamp,
+            accuracy: newPos.accuracy,
+            altitude: newPos.altitude,
+            heading: newPos.heading,
+            speed: newPos.speed,
+            speedAccuracy: newPos.speedAccuracy,
+            altitudeAccuracy: newPos.altitudeAccuracy,
+            headingAccuracy: newPos.headingAccuracy,
+          );
+        }
       }
     }
 
@@ -959,6 +983,14 @@ class LocationService {
   }
 
   String? _getLineByTrackProximity(double lat, double lng) {
+    // Check walkways first
+    final snappedTransfer = TrackData.snapToTransfer(lat, lng);
+    if (snappedTransfer != null) {
+      if (Geolocator.distanceBetween(lat, lng, snappedTransfer.latitude, snappedTransfer.longitude) <= 30.0) {
+        return 'Transfer';
+      }
+    }
+
     final allTracks = ['LRT1', 'LRT2', 'MRT3'];
     // Hysteresis: Maintain track lock up to 150m if we were already onboard
     // Otherwise strictly require < 50m to start tracking

@@ -7,8 +7,6 @@ import 'services/settings_service.dart';
 import 'services/location_service.dart';
 import 'services/background_tracking_service.dart';
 import 'widgets/system_dynamic_island.dart';
-import 'widgets/dynamic_island_overlay.dart';
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 @pragma("vm:entry-point")
@@ -92,9 +90,6 @@ class TaraTrenApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      builder: (context, child) {
-        return DynamicIslandOverlay(child: child);
-      },
       home: const SplashScreen(),
     );
   }

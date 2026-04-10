@@ -1,7 +1,7 @@
 name: tara_tren
 description: A train navigation app for Metro Manila.
 publish_to: 'none'
-version: 0.2.1+28
+version: 0.2.2+29
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
