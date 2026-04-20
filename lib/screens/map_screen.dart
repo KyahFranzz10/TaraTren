@@ -101,6 +101,9 @@ class _MapScreenState extends State<MapScreen> {
     if (mounted) {
       setState(() {
         _activeRoute = NavigationController().activeRoute.value;
+        if (_activeRoute != null) {
+          _followUser = false; // Prevent GPS from snapping away from the route
+        }
       });
       if (_activeRoute != null) {
         _fitRouteBounds(_activeRoute!);
@@ -752,14 +755,59 @@ class _MapScreenState extends State<MapScreen> {
 
   List<Polyline> _buildActiveRoutePolylines() {
     final List<Polyline> list = [];
+    if (_activeRoute == null) return list;
+
     for (var leg in _activeRoute!.legs) {
-      final s = _stationCoordMap[leg.fromStation];
-      final e = _stationCoordMap[leg.toStation];
-      if (s != null && e != null) {
+      final color = getLineColor(leg.line);
+      List<LatLng> points = [];
+
+      if (leg.type == LegType.ride) {
+        List<LatLng> track = [];
+        final normLine = leg.line.replaceAll('-', '').toUpperCase();
+        if (normLine == 'LRT1') track = TrackData.lrt1Track;
+        else if (normLine == 'LRT2') track = TrackData.lrt2Track;
+        else if (normLine == 'MRT3') track = TrackData.mrt3Track;
+
+        final start = _stationCoordMap[leg.fromStation];
+        final end = _stationCoordMap[leg.toStation];
+        
+        if (start != null && end != null && track.isNotEmpty) {
+          int sIdx = TrackData.findClosestIndex(track, start);
+          int eIdx = TrackData.findClosestIndex(track, end);
+          if (sIdx != -1 && eIdx != -1) {
+            if (sIdx <= eIdx) {
+              points = track.sublist(sIdx, eIdx + 1);
+            } else {
+              points = track.sublist(eIdx, sIdx + 1).reversed.toList();
+            }
+          }
+        }
+        
+        // Fallback to straight line if track matching failed
+        if (points.isEmpty && start != null && end != null) {
+          points = [start, end];
+        }
+      } else {
+        // Walk / Transfer
+        final trRoute = TrackData.transferRoutes.firstWhere(
+          (r) => (r.fromStation == leg.fromStation && r.toStation == leg.toStation) ||
+                 (r.toStation == leg.fromStation && r.fromStation == leg.toStation),
+          orElse: () => TransferRoute(id: '', fromLine: '', toLine: '', fromStation: '', toStation: '', distanceMeters: 0, isAirConditioned: false, walkDescription: '', path: []),
+        );
+        if (trRoute.path.isNotEmpty) {
+           points = trRoute.fromStation == leg.fromStation ? trRoute.path : trRoute.path.reversed.toList();
+        } else {
+          final s = _stationCoordMap[leg.fromStation];
+          final e = _stationCoordMap[leg.toStation];
+          if (s != null && e != null) points = [s, e];
+        }
+      }
+
+      if (points.isNotEmpty) {
         list.add(Polyline(
-          points: [s, e],
-          color: leg.type == LegType.ride ? getLineColor(leg.line) : Colors.white,
-          strokeWidth: leg.type == LegType.ride ? 6.0 : 3.0,
+          points: points,
+          color: leg.type == LegType.ride ? color : Colors.blue.withOpacity(0.5),
+          strokeWidth: leg.type == LegType.ride ? 7.0 : 4.0,
           isDotted: leg.type == LegType.walk,
         ));
       }
