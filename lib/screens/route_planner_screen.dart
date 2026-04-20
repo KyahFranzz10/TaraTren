@@ -910,7 +910,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
           return Container(
             height: MediaQuery.of(ctx).size.height * 0.75,
             decoration: BoxDecoration(
-              color: Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+              color: Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             ),
             child: Column(
@@ -921,7 +921,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(2)),
                 ),
                 Padding(
@@ -966,6 +966,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
   List<Widget> _buildGroupedStationList(List<String> stations, Function(String) onSelect) {
     final List<Widget> widgets = [];
     final List<String> lines = ['LRT1', 'LRT2', 'MRT3'];
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     for (final line in lines) {
       final lineStations = stations.where((s) => _stationLineMap[s] == line).toList();
@@ -1022,8 +1023,8 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
                   ),
                ),
              ),
-             title: Text(displayName, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)),
-             subtitle: Text(city, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+             title: Text(displayName, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)),
+             subtitle: Text(city, style: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade500, fontSize: 12)),
              onTap: () => onSelect(key),
            );
         }),
