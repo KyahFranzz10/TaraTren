@@ -8,12 +8,15 @@ class TripJournalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TripLogService service = TripLogService();
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Digital Trip Journal'),
-        backgroundColor: const Color(0xFF0D1B3E),
+        backgroundColor: isDark ? Colors.black : const Color(0xFF0D1B3E),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),
@@ -39,12 +42,12 @@ class TripJournalScreen extends StatelessWidget {
 
           return Column(
             children: [
-              _summaryHeader(journeys.length, totalSpent),
+              _summaryHeader(context, journeys.length, totalSpent),
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
                   itemCount: journeys.length,
-                  itemBuilder: (context, index) => _journeyCard(journeys[index]),
+                  itemBuilder: (context, index) => _journeyCard(context, journeys[index]),
                 ),
               ),
             ],
@@ -54,7 +57,7 @@ class TripJournalScreen extends StatelessWidget {
     );
   }
 
-  Widget _summaryHeader(int count, double total) {
+  Widget _summaryHeader(BuildContext context, int count, double total) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),
@@ -127,9 +130,10 @@ class TripJournalScreen extends StatelessWidget {
     return journeys;
   }
 
-  Widget _journeyCard(List<TripLog> logs) {
+  Widget _journeyCard(BuildContext context, List<TripLog> logs) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     if (logs.length == 1) {
-      return _tripCard(logs[0]);
+      return _tripCard(context, logs[0]);
     }
 
     final totalFare = logs.fold<double>(0, (sum, log) => sum + log.fare);
@@ -138,9 +142,10 @@ class TripJournalScreen extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+        boxShadow: isDark ? [] : [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
@@ -168,7 +173,7 @@ class TripJournalScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Multi-leg Journey', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                      Text('Multi-leg Journey', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white70 : Colors.blueGrey)),
                       Text(journeyDate, style: const TextStyle(color: Colors.grey, fontSize: 11)),
                     ],
                   ),
@@ -176,23 +181,23 @@ class TripJournalScreen extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('TOTAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.indigo)),
-                    Text('₱${totalFare.toInt()}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.indigo)),
+                    Text('TOTAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.blue.shade100 : Colors.indigo)),
+                    Text('₱${totalFare.toInt()}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: isDark ? Colors.blue.shade100 : Colors.indigo)),
                   ],
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.white10 : Colors.grey.withOpacity(0.1)),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: logs.length,
             separatorBuilder: (context, index) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
+              child: Divider(height: 1, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withValues(alpha: 0.1)),
             ),
-            itemBuilder: (context, index) => _tripLeg(logs[index]),
+            itemBuilder: (context, index) => _tripLeg(context, logs[index]),
           ),
           const SizedBox(height: 8),
         ],
@@ -200,7 +205,8 @@ class TripJournalScreen extends StatelessWidget {
     );
   }
 
-  Widget _tripLeg(TripLog log) {
+  Widget _tripLeg(BuildContext context, TripLog log) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -218,7 +224,7 @@ class TripJournalScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${log.fromStation} → ${log.toStation}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                Text('${log.fromStation} → ${log.toStation}', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: isDark ? Colors.white : Colors.black87)),
                 Text(
                   '${log.line} • PHP ${log.fare.toInt()}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
@@ -231,12 +237,16 @@ class TripJournalScreen extends StatelessWidget {
     );
   }
 
-  Widget _tripCard(TripLog log) {
+  Widget _tripCard(BuildContext context, TripLog log) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 0,
+      color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
@@ -255,7 +265,7 @@ class TripJournalScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${log.fromStation} → ${log.toStation}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('${log.fromStation} → ${log.toStation}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
                   const SizedBox(height: 4),
                   Text(
                     '${DateFormat('MMM d, h:mm a').format(log.timestamp)} • ${log.line}',
@@ -266,7 +276,7 @@ class TripJournalScreen extends StatelessWidget {
             ),
             Text(
               '₱${log.fare.toInt()}',
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.indigo),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: isDark ? Colors.blue.shade100 : Colors.indigo),
             ),
           ],
         ),

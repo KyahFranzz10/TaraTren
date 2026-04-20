@@ -70,10 +70,13 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
     
     final double co2Saved = _distance * 0.12;
 
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Savings Comparison'),
-        backgroundColor: const Color(0xFF0D1B3E),
+        backgroundColor: isDark ? Colors.black : const Color(0xFF0D1B3E),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -161,13 +164,19 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _buildJourneySelector() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final liveLines = trainLines.where((l) => ['LRT-1', 'LRT-2', 'MRT-3'].contains(l.name)).toList();
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.05),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -246,7 +255,7 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
                   },
                   showSelectedIcon: false,
                   style: SegmentedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade100,
+                    backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.shade100,
                     selectedBackgroundColor: Colors.orange,
                     selectedForegroundColor: Colors.white,
                   ),
@@ -260,6 +269,7 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _dropDown<T>({required String label, required T? value, required List<DropdownMenuItem<T>> items, required Function(T?) onChanged}) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -268,9 +278,9 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50, 
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50, 
             borderRadius: BorderRadius.circular(15), 
-            border: Border.all(color: Colors.grey.shade200)
+            border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200)
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
@@ -278,7 +288,12 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
               items: items,
               onChanged: onChanged,
               isExpanded: true,
-              style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16),
+              dropdownColor: isDark ? Colors.grey.shade900 : Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A), 
+                fontWeight: FontWeight.bold, 
+                fontSize: 16
+              ),
             ),
           ),
         ),
@@ -287,13 +302,19 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _buildComparisonCard(double carCost) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final double trainRatio = (_trainFare / carCost).clamp(0.05, 1.0);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.05),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -311,20 +332,21 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _barItem(String label, double cost, Color color, double ratio) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+            Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white70 : const Color(0xFF0F172A))),
             Text('₱${cost.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 16)),
           ],
         ),
         const SizedBox(height: 10),
         Stack(
           children: [
-            Container(height: 10, width: double.infinity, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(5))),
+            Container(height: 10, width: double.infinity, decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.grey.shade100, borderRadius: BorderRadius.circular(5))),
             FractionallySizedBox(
               widthFactor: ratio,
               child: AnimatedContainer(
@@ -340,11 +362,17 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _buildInputSection() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.05),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -364,22 +392,23 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _sliderInput(String title, double value, double min, double max, String unit, TextEditingController controller, Function(double) onChanged) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(color: Color(0xFF1F2937), fontWeight: FontWeight.bold, fontSize: 14)),
-            Text('${value.toStringAsFixed(1)} $unit', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.indigo, fontSize: 14)),
+            Text(title, style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF1F2937), fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('${value.toStringAsFixed(1)} $unit', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.blue, fontSize: 14)),
           ],
         ),
         Slider(
           value: value.clamp(min, max),
           min: min,
           max: max,
-          activeColor: Colors.indigo,
-          inactiveColor: Colors.grey.shade100,
+          activeColor: Colors.blue,
+          inactiveColor: isDark ? Colors.white10 : Colors.grey.shade100,
           onChanged: (v) {
             onChanged(v);
             controller.text = v.toStringAsFixed(title.contains('Parking') ? 0 : 1);
@@ -403,19 +432,21 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   }
 
   Widget _projectionBox(String title, double amount, Color color) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+        boxShadow: isDark ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
           const SizedBox(height: 8),
-          Text('₱${amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          Text('₱${amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
           const SizedBox(height: 4),
           const Text('IN SAVINGS', style: TextStyle(fontSize: 10, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
         ],
@@ -461,32 +492,44 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
   void _showPromoInfo() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Fare & Promo Info", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-            const SizedBox(height: 16),
-            _promoItem(Icons.celebration, "White Beep Benefit", "Seniors, Students, and PWDs enjoy a 50% flat discount on all train lines.", Colors.indigo),
-            _promoItem(Icons.credit_card, "Stored Value (Beep) Advantage", "Fare calculations automatically prefer Stored Value rates where applicable.", Colors.blue),
-            _promoItem(Icons.eco, "Eco-Savings", "Public transit is the most efficient way to reduce your carbon footprint in the city.", Colors.green),
-            const SizedBox(height: 20),
-            SizedBox(width: double.infinity, child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0D1B3E), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () => Navigator.pop(context), 
-              child: const Text("Got it")
-            )),
-          ],
-        ),
-      ),
+      builder: (context) {
+        final bool isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade900 : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Fare & Promo Info", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+              const SizedBox(height: 16),
+              _promoItem(context, Icons.celebration, "White Beep Benefit", "Seniors, Students, and PWDs enjoy a 50% flat discount on all train lines.", Colors.indigo),
+              _promoItem(context, Icons.credit_card, "Stored Value (Beep) Advantage", "Fare calculations automatically prefer Stored Value rates where applicable.", Colors.blue),
+              _promoItem(context, Icons.eco, "Eco-Savings", "Public transit is the most efficient way to reduce your carbon footprint in the city.", Colors.green),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? Colors.indigo : const Color(0xFF0D1B3E), 
+                  foregroundColor: Colors.white, 
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                ),
+                onPressed: () => Navigator.pop(context), 
+                child: const Text("Got it")
+              )),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _promoItem(IconData icon, String title, String desc, Color color) {
+  Widget _promoItem(BuildContext context, IconData icon, String title, String desc, Color color) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -495,8 +538,8 @@ class _SavingsComparisonScreenState extends State<SavingsComparisonScreen> {
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0D1B3E))),
-            Text(desc, style: const TextStyle(color: Colors.blueGrey, fontSize: 13)),
+            Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF0D1B3E))),
+            Text(desc, style: TextStyle(color: isDark ? Colors.white60 : Colors.blueGrey, fontSize: 13)),
           ])),
         ],
       ),
