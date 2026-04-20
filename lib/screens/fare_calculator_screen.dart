@@ -67,156 +67,235 @@ class _FareCalculatorScreenState extends State<FareCalculatorScreen> {
         title: const Text('Fare Calculator'),
         backgroundColor: const Color(0xFF0D1B3E),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // 1. Line Selection
-            const Text('Choose Tren Line', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<TrainLine>(
-                  isExpanded: true,
-                  value: _selectedLine,
-                  items: _operationalLines.map((line) => DropdownMenuItem(value: line, child: Text(line.name))).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedLine = val;
-                      _sourceStation = val!.stations.first;
-                      _destStation = val.stations.last;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
+            // 1. Heritage Header
+            _buildHeader(),
 
-            // 2. From/To Selection
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Origin Station', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      DropdownButton<Station>(
-                        isExpanded: true,
-                        value: _sourceStation,
-                        items: _selectedLine!.stations.map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (val) => setState(() => _sourceStation = val),
-                      ),
-                    ],
-                  ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.compare_arrows, color: Colors.blueGrey)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Destination', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                      DropdownButton<Station>(
-                        isExpanded: true,
-                        value: _destStation,
-                        items: _selectedLine!.stations.map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
-                        onChanged: (val) => setState(() => _destStation = val),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40),
+            // 2. Journey Selection Card
+            _buildSelectionCard(),
 
-            // 3. Price Results
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0D1B3E).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFF0D1B3E).withValues(alpha: 0.1)),
-              ),
-              child: Column(
-                children: [
-                  const Text('Commuter Fare Matrix', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0D1B3E))),
-                  if (fares['isFreeRide'] == 1) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [Colors.green.shade700, Colors.green.shade500]),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.3), blurRadius: 8)],
-                      ),
-                      child: Column(
-                        children: [
-                          const Text("🎁 LIBRENG SAKAY", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                          Text("${fares['freeRideEvent']}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text("Valid: ${fares['freeRideDuration']}", style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
-                        ],
-                      ),
-                    ),
-                  ] else if (fares['isPromo'] == 1) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.orange.shade800, borderRadius: BorderRadius.circular(8)),
-                      child: const Text("PROMO: 50% OFF FOR ALL", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                    ),
-                  ],
-                  const SizedBox(height: 25),
-                  
-                  // THE FOUR REQUESTED FARE CATEGORIES
-                  _fareRow('Single Journey Card', fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sj_base']?.toStringAsFixed(2)}', fares['isFreeRide'] == 1 ? Colors.green : Colors.orange),
-                  const Divider(height: 24),
+            const SizedBox(height: 16),
 
-                  _fareRow('Single Journey Card (Senior/Student)', fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sj50']?.toStringAsFixed(2)}', fares['isFreeRide'] == 1 ? Colors.green : Colors.orange.shade700, subtitle: fares['isFreeRide'] == 1 ? null : "50% Discount Applied"),
-                  const Divider(height: 24),
-                  
-                  _fareRow('Stored Value Card', fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sv_base']?.toStringAsFixed(2)}', fares['isFreeRide'] == 1 ? Colors.green : Colors.blue),
-                  const Divider(height: 24),
+            // 3. Price Results Card
+            _buildMatrixCard(fares),
 
-                  _fareRow('Stored Value Card for Senior/Student', fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sv50']?.toStringAsFixed(2)}', fares['isFreeRide'] == 1 ? Colors.green : Colors.blue.shade700, subtitle: fares['isFreeRide'] == 1 ? null : "50% Discount Applied"),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.shade200)),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.amber, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(child: Text("White Beep Cards provide the highest discount (50%) for eligible Philippine citizens.", style: TextStyle(fontSize: 11, color: Colors.black87),))
-                ],
-              ),
-            )
+            const SizedBox(height: 24),
+            
+            // 4. White Beep Info
+            _buildInfoTile(),
+            
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
 
-  Widget _fareRow(String title, String val, Color color, {String? subtitle}) {
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0D1B3E), Color(0xFF1E3A8A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D1B3E).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _selectedLine?.name.toUpperCase() ?? "SELECT LINE",
+            style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 2),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "COMMUTER PRICING",
+            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Calculated based on current operating matrices",
+            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionCard() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            _dropDown<TrainLine>(
+              label: "CHOOSE TREN LINE",
+              value: _selectedLine,
+              items: _operationalLines.map((line) => DropdownMenuItem(value: line, child: Text(line.name))).toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedLine = val;
+                  _sourceStation = val!.stations.first;
+                  _destStation = val.stations.last;
+                });
+              },
+            ),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(height: 1)),
+            Row(
+              children: [
+                Expanded(child: _dropDown<Station>(
+                  label: "ORIGIN",
+                  value: _sourceStation,
+                  items: _selectedLine!.stations.map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (val) => setState(() => _sourceStation = val),
+                )),
+                const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Icon(Icons.swap_horiz, color: Colors.blueGrey)),
+                Expanded(child: _dropDown<Station>(
+                  label: "DESTINATION",
+                  value: _destStation,
+                  items: _selectedLine!.stations.map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: const TextStyle(fontSize: 13)))).toList(),
+                  onChanged: (val) => setState(() => _destStation = val),
+                )),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dropDown<T>({required String label, required T? value, required List<DropdownMenuItem<T>> items, required Function(T?) onChanged}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50, 
+            borderRadius: BorderRadius.circular(15), 
+            border: Border.all(color: Colors.grey.shade100)
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              isExpanded: true,
+              value: value,
+              items: items,
+              onChanged: onChanged,
+              style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatrixCard(Map<String, dynamic> fares) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const Text('Commuter Fare Matrix', 
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0D1B3E))
+            ),
+            const SizedBox(height: 24),
+            
+            // THE THREE REQUESTED FARE CATEGORIES
+            _fareRow('Single Journey Card', 
+              fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sj_base']?.toStringAsFixed(2)}', 
+              fares['isFreeRide'] == 1 ? Colors.green : Colors.orange
+            ),
+            const Divider(height: 32),
+
+            _fareRow('Beep Card (with 20% discount)', 
+              fares['isFreeRide'] == 1 ? 'FREE' : '₱${((fares['sv_base'] ?? 0) * 0.8).toStringAsFixed(2)}', 
+              fares['isFreeRide'] == 1 ? Colors.green : Colors.blue
+            ),
+            const Divider(height: 32),
+
+            _fareRow('Single Journey/White Beep Card (for PWD/Senior Citizen/Student with 50% discount)', 
+              fares['isFreeRide'] == 1 ? 'FREE' : '₱${fares['sj50']?.toStringAsFixed(2)}', 
+              fares['isFreeRide'] == 1 ? Colors.green : const Color(0xFF1E40AF)
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoTile() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.05), 
+        borderRadius: BorderRadius.circular(20), 
+        border: Border.all(color: Colors.blue.withOpacity(0.1))
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user, color: Colors.blue, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("WHITE BEEP POLICY", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.blue, letterSpacing: 0.5)),
+                const SizedBox(height: 4),
+                Text(
+                  "White Beep Cards provide the highest discount (50%) for eligible Philippine commuters.", 
+                  style: TextStyle(fontSize: 12, color: Colors.blue.shade900, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _fareRow(String title, String val, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                if (subtitle != null) Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              ],
+            child: Text(
+              title, 
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))
             ),
           ),
-          Text(val, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)),
+          const SizedBox(width: 8),
+          Text(
+            val, 
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color)
+          ),
         ],
       ),
     );

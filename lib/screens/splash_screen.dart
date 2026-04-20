@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -54,19 +54,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
     
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       } else {
+        // Direct to Map even if Guest
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     } catch (e) {
       debugPrint("Auth navigation error: $e");
-      // Fallback to login screen even if Firebase is missing/uninitialized
+      // Fallback to login screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_activity_recognition/flutter_activity_recognition.dart' as far;
 import 'package:geolocator/geolocator.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,16 +66,26 @@ class BackgroundTrackingService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
-    await Firebase.initializeApp();
+    
+    // Initialize Supabase in Background Process
+    try {
+      await dotenv.load(fileName: ".env");
+      await Supabase.initialize(
+        url: dotenv.env['SUPABASE_URL'] ?? '',
+        anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+      );
+    } catch (e) {
+      debugPrint("BG Service Init Error: $e");
+    }
+
+    await SettingsService().init();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // Initialize GeoJSON data for polygon-based station detection
+    // Initialize GeoJSON data
     try {
       await GeoJsonService.loadAllLines();
     } catch (e) {
       debugPrint("BG Service Error: Critical GeoJSON load failed: $e");
-      // Notify UI via Background Service instance if possible, or just log
-      // In a real app, we might send this to Sentry/Firebase Crashlytics
     }
 
     if (service is AndroidServiceInstance) {
@@ -211,12 +221,12 @@ class BackgroundTrackingService {
              else if (h >= 225 && h < 315) dir = "Westbound";
 
              try {
-               final user = FirebaseAuth.instance.currentUser;
+               final user = Supabase.instance.client.auth.currentUser;
                if (user != null) {
-                 await CrowdInsightService().updateCurrentStationPresence(position, user.uid);
+                 await CrowdInsightService().updateCurrentStationPresence(position, user.id);
                  
                  if (speedKph > 15) {
-                    final String tId = "T-$activeTrack-${user.uid.substring(0, 6)}";
+                    final String tId = "T-$activeTrack-${user.id.substring(0, 6)}";
                     int interval = isPowerSaving ? 30 : 15;
                     
                     if (DateTime.now().difference(lastReportTime).inSeconds > interval) {
@@ -229,7 +239,7 @@ class BackgroundTrackingService {
                         trainsetId: tId,
                         lineName: activeTrack,
                         pos: reportPos,
-                        userId: user.uid,
+                        userId: user.id,
                         heading: h,
                         direction: dir,
                       );
@@ -238,7 +248,7 @@ class BackgroundTrackingService {
                  }
                }
              } catch (e) {
-               debugPrint("BG Tracking: Offline or Firebase error: $e");
+               debugPrint("BG Tracking: Offline or Supabase error: $e");
              }
 
              final double? walkD = GeoJsonService.getWalkwayDistance(ll.LatLng(position.latitude, position.longitude));
@@ -255,32 +265,44 @@ class BackgroundTrackingService {
                nStat = currentIdx > 0 ? lStations[currentIdx - 1]['name'] : null;
              }
 
-             String statusLabel;
-             String? bodyText;
+              String statusLabel;
+              String? bodyText;
+              bool isArrivalAlert = false;
 
-             if (isAtSt) {
-               statusLabel = "$dir • Stopped:";
-               bodyText = "Doors Opening • Platform $dir";
-             } else if (isOnWalkway) {
-               statusLabel = "🚶 Transferring:";
-               bodyText = "Walking to ${nearest!['name']} connection";
-             } else {
-               statusLabel = "$dir • Next:";
-               bodyText = null;
-             }
+              if (isAtSt) {
+                statusLabel = "Arrived • Stopped:";
+                final landmark = nearest['landmark'] ?? "Station";
+                final connections = nearest['isTransfer'] == true ? "\nTransfer to ${nearest['line'] == 'MRT3' ? 'LRT-2' : 'other lines'} available." : "";
+                bodyText = "Reached $landmark.$connections";
+                isArrivalAlert = true; 
+              } else if (isOnWalkway) {
+                statusLabel = "🚶 Transferring:";
+                bodyText = "Walking to ${nearest['name']} connection";
+                isArrivalAlert = true;
+              } else if (distVal < 400 && speedKph > 5) {
+                statusLabel = "$dir • Arriving:";
+                bodyText = "Approaching ${nearest['name']} platform";
+                isArrivalAlert = true;
+              } else {
+                statusLabel = "$dir • Next:";
+                bodyText = null;
+                isArrivalAlert = false;
+              }
 
-             SystemOverlayService().show(
-               nextStation: nStat ?? '--',
-               line: activeTrack,
-               speed: speedKph.toInt(),
-               currentStation: nearest!['name'],
-               statusLabel: statusLabel,
-               distance: distVal,
-               pace: paceVal,
-               isSouthbound: !isIncreasing,
-               prevStation: pStat ?? '--',
-               bodyText: bodyText,
-             );
+              SystemOverlayService().show(
+                nextStation: nStat ?? '--',
+                line: activeTrack,
+                speed: speedKph.toInt(),
+                currentStation: nearest['name'],
+                statusLabel: statusLabel,
+                distance: distVal,
+                pace: paceVal,
+                isSouthbound: !isIncreasing,
+                prevStation: pStat ?? '--',
+                bodyText: bodyText,
+                isArrivalAlert: isArrivalAlert,
+                isNowArriving: isAtSt || (distVal < 200),
+              );
 
              LiveTrainService().reportLocationRTDB(
                 trainsetId: "T-BG-$activeTrack",
@@ -360,6 +382,8 @@ class BackgroundTrackingService {
   static String? _getTrackLine(Position position, Map<String, dynamic>? nearest) {
     const double thresholdMeters = 50.0;
 
+    if (nearest == null) return null;
+
     // Check for walkways first
     final snappedTransfer = TrackData.snapToTransfer(position.latitude, position.longitude);
     if (snappedTransfer != null) {
@@ -377,17 +401,10 @@ class BackgroundTrackingService {
            if (track == 'LRT1' && position.altitude > 0 && position.altitude < 5.5) {
              return null;
            } else if (track == 'LRT2' && position.altitude > 0 && position.altitude < 7.0) {
-             // Underground Katipunan loses GPS or drops negative, 13-16m tracks elevate far higher
              return null;
-           } else if (track == 'MRT3' && nearest != null && nearest['line'] == 'MRT3') {
+           } else if (track == 'MRT3' && nearest['line'] == 'MRT3') {
              String sid = nearest['id'];
              if (sid == 'mrt3-buendia' || sid == 'mrt3-ayala') {
-               // Underground
-               if (position.altitude > 0 && position.altitude < 5.5) return null;
-             } else if (sid == 'mrt3-north-ave' || sid == 'mrt3-quezon-ave' || sid == 'mrt3-kamuning' || sid == 'mrt3-magallanes') {
-               // At-Grade
-             } else {
-               // Elevated 
                if (position.altitude > 0 && position.altitude < 5.5) return null;
              }
            }

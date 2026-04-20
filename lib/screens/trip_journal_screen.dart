@@ -35,15 +35,16 @@ class TripJournalScreen extends StatelessWidget {
 
           final logs = snapshot.data!;
           final totalSpent = logs.fold<double>(0, (sum, item) => sum + item.fare);
+          final journeys = _groupLogsIntoJourneys(logs);
 
           return Column(
             children: [
-              _summaryHeader(logs.length, totalSpent),
+              _summaryHeader(journeys.length, totalSpent),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) => _tripCard(logs[index]),
+                  padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
+                  itemCount: journeys.length,
+                  itemBuilder: (context, index) => _journeyCard(journeys[index]),
                 ),
               ),
             ],
@@ -65,7 +66,13 @@ class TripJournalScreen extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.blue.withValues(alpha: 0.2), blurRadius: 10)],
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D1B3E).withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ],
       ),
       child: Column(
         children: [
@@ -76,7 +83,7 @@ class TripJournalScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _statItem(Icons.train, '$count Trips'),
+              _statItem(Icons.map_outlined, '$count Journeys'),
               const SizedBox(width: 30),
               _statItem(Icons.savings, '₱${(total * 0.2).toStringAsFixed(1)} Saved'),
             ],
@@ -96,9 +103,139 @@ class TripJournalScreen extends StatelessWidget {
     );
   }
 
+  List<List<TripLog>> _groupLogsIntoJourneys(List<TripLog> logs) {
+    if (logs.isEmpty) return [];
+    
+    List<List<TripLog>> journeys = [];
+    List<TripLog> currentJourney = [logs[0]];
+    
+    for (int i = 1; i < logs.length; i++) {
+      final currentLog = logs[i];
+      
+      // If the current log is within 90 minutes of the journey's most recent leg
+      final lastLog = currentJourney.last;
+      final diff = lastLog.timestamp.difference(currentLog.timestamp).inMinutes.abs();
+      
+      if (diff < 90) {
+        currentJourney.add(currentLog);
+      } else {
+        journeys.add(currentJourney);
+        currentJourney = [currentLog];
+      }
+    }
+    journeys.add(currentJourney);
+    return journeys;
+  }
+
+  Widget _journeyCard(List<TripLog> logs) {
+    if (logs.length == 1) {
+      return _tripCard(logs[0]);
+    }
+
+    final totalFare = logs.fold<double>(0, (sum, log) => sum + log.fare);
+    final journeyDate = DateFormat('MMM d, h:mm a').format(logs.last.timestamp);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome, color: Colors.orange, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Multi-leg Journey', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                      Text(journeyDate, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('TOTAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                    Text('₱${totalFare.toInt()}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.indigo)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: logs.length,
+            separatorBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(height: 1, color: Colors.grey.withValues(alpha: 0.1)),
+            ),
+            itemBuilder: (context, index) => _tripLeg(logs[index]),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _tripLeg(TripLog log) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 30,
+            decoration: BoxDecoration(
+              color: _getLineColor(log.line),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${log.fromStation} → ${log.toStation}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                Text(
+                  '${log.line} • PHP ${log.fare.toInt()}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _tripCard(TripLog log) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -179,9 +316,10 @@ class TripJournalScreen extends StatelessWidget {
   }
 
   Color _getLineColor(String line) {
-    if (line == 'LRT1') return Colors.green;
-    if (line == 'LRT2') return Colors.purple;
-    if (line == 'MRT3') return Colors.yellow.shade700;
+    final l = line.toUpperCase();
+    if (l.contains('LRT1')) return Colors.green;
+    if (l.contains('LRT2')) return Colors.purple;
+    if (l.contains('MRT3')) return Colors.yellow.shade700;
     return Colors.indigo;
   }
 }

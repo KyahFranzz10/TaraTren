@@ -7,8 +7,9 @@ class SystemOverlayService {
   static final SystemOverlayService _instance = SystemOverlayService._internal();
   factory SystemOverlayService() => _instance;
   SystemOverlayService._internal();
-
   bool _isActive = false;
+
+  Future<bool> isActive() async => await FlutterOverlayWindow.isActive();
 
   Future<void> show({
     required String nextStation,
@@ -22,6 +23,7 @@ class SystemOverlayService {
     double? distance,
     String? pace,
     bool isSouthbound = true,
+    bool isNowArriving = false,
   }) async {
     if (!SettingsService().isSystemIslandEnabled) {
       await hide();
@@ -46,12 +48,15 @@ class SystemOverlayService {
       return;
     }
     if (!await FlutterOverlayWindow.isPermissionGranted()) return;
+    
+    bool active = await FlutterOverlayWindow.isActive();
 
-    if (!_isActive) {
+    if (!active) {
       try {
+        _isActive = false; // Reset local state to be sure
         await FlutterOverlayWindow.showOverlay(
-          height: 400, // Increased from 350 to ensure no overflow even with tall content
-          width: WindowSize.matchParent,
+          height: 80, 
+          width: 220,
           alignment: OverlayAlignment.topCenter,
           enableDrag: true,
           overlayTitle: "TaraTren Live",
@@ -77,14 +82,13 @@ class SystemOverlayService {
       'distance': distance,
       'pace': pace,
       'isSouthbound': isSouthbound,
+      'isNowArriving': isNowArriving,
     });
   }
 
   Future<void> hide() async {
-    if (_isActive) {
-      await FlutterOverlayWindow.closeOverlay();
-      _isActive = false;
-    }
+    await FlutterOverlayWindow.closeOverlay();
+    _isActive = false;
   }
 
   Future<void> requestPermission() async {

@@ -5,6 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/offline_storage_service.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../models/scraped_alert.dart';
 
 class NewsFeedScreen extends StatefulWidget {
   const NewsFeedScreen({super.key});
@@ -33,7 +37,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen>
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF8F9FE),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         children: [
           // Development Note / Beta Banner
@@ -41,20 +45,20 @@ class _NewsFeedScreenState extends State<NewsFeedScreen>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              border: Border(bottom: BorderSide(color: Colors.amber.shade200)),
+              color: Colors.amber.withOpacity(0.1),
+              border: Border(bottom: BorderSide(color: Colors.amber.withOpacity(0.2))),
             ),
             child: Row(
               children: [
                 Icon(Icons.new_releases,
                     color: Colors.orange.shade700, size: 18),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     "Note: The real-time Facebook sync is currently in Beta. Features may not be fully functional as we refine sync accuracy.",
                     style: TextStyle(
                         fontSize: 11,
-                        color: Colors.black87,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
                         fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -65,22 +69,22 @@ class _NewsFeedScreenState extends State<NewsFeedScreen>
           Container(
             padding: const EdgeInsets.only(top: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4))
               ],
             ),
             child: TabBar(
               controller: _tabController,
-              labelColor: const Color(0xFF0D1B3E),
-              unselectedLabelColor: Colors.grey.shade400,
+              labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.orange : const Color(0xFF0D1B3E),
+              unselectedLabelColor: Theme.of(context).hintColor,
               indicatorColor: Colors.orange,
               indicatorWeight: 4,
               labelStyle:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               tabs: _lines.map((name) => Tab(text: name)).toList(),
             ),
           ),
@@ -106,7 +110,7 @@ class _ScrapedFeedList extends StatefulWidget {
 }
 
 class _ScrapedFeedListState extends State<_ScrapedFeedList> {
-  late final WebViewController _webController;
+  WebViewController? _webController;
   List<dynamic> _scrapedPosts = [];
   bool _isLoading = true;
   bool _hasError = false;
@@ -121,7 +125,12 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
   @override
   void initState() {
     super.initState();
-    _initScraper();
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      _initScraper();
+    } else {
+      // Desktop Fallback
+      _isLoading = false;
+    }
   }
 
   void _initScraper() {
@@ -131,9 +140,8 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
 
     _webController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
       ..setBackgroundColor(const Color(0x00000000))
+      ..setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1")
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (url) {
@@ -144,16 +152,48 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
       )
       ..addJavaScriptChannel(
         'LRT_Scraper',
-        onMessageReceived: (message) {
+        onMessageReceived: (message) async {
           try {
-            final List<dynamic> data = jsonDecode(message.message);
-            if (data.isNotEmpty && mounted) {
+            final List<dynamic> rawData = jsonDecode(message.message);
+            if (rawData.isNotEmpty && mounted) {
+               // FUZZY DEDUPLICATION: "Longer wins" for the same normalized start
+               final Map<String, dynamic> uniquePosts = {};
+               
+               for (var post in rawData) {
+                 String msg = (post['content'] ?? '').toString();
+                 if (msg.length < 5) continue;
+                 
+                 // Normalize: No emojis, no punctuation, first 50 chars as key
+                 String fuzzyKey = msg.replaceAll(RegExp(r'[^\w\s]'), '')
+                                      .replaceAll(RegExp(r'\s+'), ' ')
+                                      .trim()
+                                      .toLowerCase();
+                 if (fuzzyKey.length > 50) fuzzyKey = fuzzyKey.substring(0, 50);
+                 
+                 if (!uniquePosts.containsKey(fuzzyKey) || msg.length > uniquePosts[fuzzyKey]['content'].toString().length) {
+                   uniquePosts[fuzzyKey] = post;
+                 }
+               }
+               
+               final List<dynamic> filteredData = uniquePosts.values.toList();
+               
               setState(() {
-                _scrapedPosts = data;
+                _scrapedPosts = filteredData;
                 _isLoading = false;
                 _hasError = false;
               });
-              _checkAndNotifyAdvisories(data);
+
+              // Save to offline storage
+              for (var post in filteredData) {
+                await OfflineStorageService().saveAlert(ScrapedAlert(
+                  title: "${post['line'] ?? 'Advisory'} Update",
+                  message: post['content'],
+                  line: post['line'] ?? widget.line,
+                  timestamp: DateTime.now(), // We use current time for sorting alerts
+                ));
+              }
+
+              _checkAndNotifyAdvisories(filteredData);
             }
           } catch (e) {
             debugPrint("Scrape Parse Error: $e");
@@ -179,14 +219,17 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
     final prefs = await SharedPreferences.getInstance();
     List<String> notifiedPosts = prefs.getStringList('notified_advisories') ?? [];
     
-    final keywords = [
-      "technical issue",
-      "limited operations",
-      "resumes full operations",
-      "customer advisory",
-      "dotr-mrt-3 advisory",
-      "lrtadvisory"
-    ];
+    final Map<String, int> keywordWeights = {
+      "service interruption": 5,
+      "no operation": 5,
+      "technical issue": 4,
+      "limited operations": 4,
+      "delay": 3,
+      "slow movement": 2,
+      "lrtadvisory": 2,
+      "resumes operations": -3,
+      "normal operations": -5,
+    };
 
     bool hasNewAdvisory = false;
 
@@ -194,15 +237,42 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
       final String contentOrig = post['content'].toString();
       final String contentLow = contentOrig.toLowerCase();
       
-      final postId = "${post['timestamp']}_${contentOrig.length}";
+      final postId = contentLow.hashCode.toString();
       
       if (notifiedPosts.contains(postId)) continue;
       
-      bool isAdvisory = keywords.any((k) => contentLow.contains(k));
-      if (isAdvisory) {
+      int score = 0;
+      for (var entry in keywordWeights.entries) {
+        if (contentLow.contains(entry.key)) {
+          score += entry.value;
+        }
+      }
+
+      // Context filter
+      if (contentLow.contains("resolved") || 
+          contentLow.contains("back to normal") ||
+          contentLow.contains("resumes full operations")) {
+        score -= 3;
+      }
+
+      if (score >= 2 || score <= -3) { // Trigger if there's enough weight in any direction
+        String severity = "info";
+        if (score >= 5) {
+          severity = "major";
+        } else if (score >= 3) {
+          severity = "delay";
+        } else if (score <= -3) {
+          severity = "normal";
+        }
+
+        String emoji = "ℹ️";
+        if (severity == "major") emoji = "🚨";
+        if (severity == "delay") emoji = "⚠️";
+        if (severity == "normal") emoji = "✅";
+
         NotificationService().showScheduleNotification(
            id: postId.hashCode.abs() % 10000,
-           title: "⚠️ Rail Advisory: ${widget.line}",
+           title: "$emoji ${widget.line} Status Update",
            body: "Critical update found in Official Feed: ${contentOrig.length > 50 ? contentOrig.substring(0, 50) + '...' : contentOrig}",
         );
         notifiedPosts.add(postId);
@@ -219,52 +289,70 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
   }
 
   Future<void> _scrapeData() async {
-    if (!mounted) return;
+    if (!mounted || _webController == null) return;
     const String script = r"""
       (function() {
         try {
-          const seeMoreLinks = document.querySelectorAll('._5v47, .see_more_link, [role="button"]');
+          // 1. Expand all "See More" links
+          const seeMoreLinks = document.querySelectorAll('._5v47, .see_more_link, [role="button"], ._4vn1, ._5pco');
           seeMoreLinks.forEach(link => {
             const text = link.innerText.toLowerCase();
-            if (text.includes('see more') || text.includes('higit pa') || text.includes('continue reading')) link.click();
+            if (text.includes('see more') || text.includes('higit pa') || text.includes('more')) link.click();
           });
 
-          const posts = [];
-          const postElements = document.querySelectorAll('._5pcr, .userContentWrapper, [role="article"]');
-          
-          postElements.forEach(el => {
-            const contentEl = el.querySelector('._5pbx, .userContent, [data-testid="post_message"]');
-            if (!contentEl) return;
+          // 2. Perform the scrape with a broad-net strategy
+          setTimeout(() => {
+            const posts = [];
+            const seenContents = new Set();
+            
+            // Look for any standard FB content blocks
+            const blocks = document.querySelectorAll('._5pbx, .userContent, [data-testid="post_message"], ._1dwg, ._5pco, ._5pxu');
+            
+            blocks.forEach(block => {
+              // Find the closest ancestor that looks like a card
+              const el = block.closest('._5pcr, ._4-u2, [role="article"], .userContentWrapper') || block;
+              
+              let text = block.innerText.trim();
+              if (text.length < 5) return;
 
-            const timeEl = el.querySelector('abbr._39g5, ._5ptz, .timestampContent');
-            const imgEls = el.querySelectorAll('img[src*="fbcdn"]');
-            const imageUrls = [];
-            imgEls.forEach(img => {
-               if (img.width > 200 || img.height > 200) {
-                 if (!imageUrls.includes(img.src)) imageUrls.push(img.src);
-               }
-            });
+              // Internal Deduplication (the "stutter" fix)
+              if (text.length > 100) {
+                 let startPhrase = text.substring(0, 40);
+                 let lastStart = text.lastIndexOf(startPhrase);
+                 if (lastStart > 40) {
+                    text = text.substring(lastStart).trim();
+                 }
+              }
 
-            const linkEl = el.querySelector('a._5pcq, a[href*="/posts/"], a[href*="/photos/"]');
-            const postUrl = linkEl ? linkEl.href : null;
+              text = text.replace(/See more|Higit pa|Continue reading|\.\.\.$/gi, '').trim();
+              
+              // Global Deduplication for this scan
+              let hash = text.substring(0, 60);
+              if (seenContents.has(hash)) return;
+              seenContents.add(hash);
 
-            let cleanText = contentEl.innerText.trim();
-            cleanText = cleanText.replace(/See more|Higit pa|Continue reading|\.\.\.$/gi, '').trim();
-
-            if (cleanText.length > 5 || imageUrls.length > 0) {
-              posts.push({
-                'content': cleanText,
-                'timestamp': timeEl ? timeEl.innerText : "Latest Update",
-                'imageUrls': imageUrls,
-                'postUrl': postUrl
+              const timeEl = el.querySelector('abbr, ._5ptz, .timestampContent, time, ._5pcq [title]');
+              const imgEls = el.querySelectorAll('img[src*="fbcdn"]');
+              const imageUrls = [];
+              imgEls.forEach(img => {
+                 if (img.width > 150 || img.height > 150 && !imageUrls.includes(img.src)) imageUrls.push(img.src);
               });
-            }
-          });
-          LRT_Scraper.postMessage(JSON.stringify(posts));
+
+              const linkEl = el.querySelector('a._5pcq, a[href*="/posts/"], a[href*="/photos/"]');
+              
+              posts.push({
+                'content': text,
+                'timestamp': timeEl ? (timeEl.title || timeEl.innerText) : "Recent Update",
+                'imageUrls': imageUrls,
+                'postUrl': linkEl ? linkEl.href : null
+              });
+            });
+            LRT_Scraper.postMessage(JSON.stringify(posts));
+          }, 600); 
         } catch(e) { LRT_Scraper.postMessage(JSON.stringify([])); }
       })();
     """;
-    await _webController.runJavaScript(script);
+    await _webController!.runJavaScript(script);
   }
 
   @override
@@ -278,40 +366,51 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
               children: [
                 const CircularProgressIndicator(color: Colors.orange),
                 const SizedBox(height: 16),
-                Text("Syncing Official Feed for ${widget.line}...",
-                    style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500)),
+                Text(
+                  (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) 
+                    ? "Syncing Official Feed for ${widget.line}..." 
+                    : "Fetching latest station advisories...",
+                  style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500)),
               ],
             ),
           ),
-          Opacity(
-              opacity: 0.01, child: WebViewWidget(controller: _webController)),
+          if (_webController != null)
+            Opacity(opacity: 0.01, child: WebViewWidget(controller: _webController!)),
         ],
       );
     }
 
     if (_hasError || _scrapedPosts.isEmpty) return _buildErrorState();
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        setState(() => _isLoading = true);
-        await _webController.reload();
-      },
-      color: Colors.orange,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        itemCount: _scrapedPosts.length,
-        itemBuilder: (context, index) {
-          final post = _scrapedPosts[index];
-          return _buildPostCard(post);
-        },
-      ),
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              if (_webController != null) {
+                setState(() => _isLoading = true);
+                await _webController!.reload();
+              }
+            },
+            color: Colors.orange,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: _scrapedPosts.length,
+              itemBuilder: (context, index) {
+                final post = _scrapedPosts[index];
+                return _buildPostCard(post, isLatest: index == 0);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPostCard(dynamic post) {
+  Widget _buildPostCard(dynamic post, {bool isLatest = false}) {
     String profileAsset = "assets/image/TaraTrain_Logo.png";
     String officialName = "Official ${widget.line}";
 
@@ -334,19 +433,32 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
 
     final postContent = post['content'].toString();
     final List<dynamic> imageUrls = post['imageUrls'] ?? [];
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isLatest 
+            ? (isDark ? Colors.indigo.withOpacity(0.15) : Colors.indigo.withOpacity(0.05))
+            : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
+          if (isLatest)
+             BoxShadow(
+               color: Colors.indigo.withOpacity(0.1),
+               blurRadius: 20,
+               spreadRadius: 2,
+             ),
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
               blurRadius: 15,
               offset: const Offset(0, 5))
         ],
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(
+          color: isLatest 
+              ? Colors.indigo.withOpacity(0.3) 
+              : Theme.of(context).dividerColor.withOpacity(0.1)
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,19 +494,37 @@ class _ScrapedFeedListState extends State<_ScrapedFeedList> {
                         children: [
                           Flexible(
                               child: Text(officialName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 15,
-                                      color: Color(0xFF0D1B3E)),
+                                      color: Theme.of(context).textTheme.titleMedium?.color),
                                   overflow: TextOverflow.ellipsis)),
                           const SizedBox(width: 4),
                           const Icon(Icons.verified,
                               color: Color(0xFF1877F2), size: 16),
                         ],
                       ),
-                      Text("${post['timestamp'] ?? 'Latest Update'}",
-                          style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 12)),
+                      Row(
+                        children: [
+                          Text("${post['timestamp'] ?? 'Latest Update'}",
+                              style: TextStyle(
+                                  color: isLatest ? Colors.indigo : Colors.grey.shade500, 
+                                  fontSize: 12,
+                                  fontWeight: isLatest ? FontWeight.bold : FontWeight.normal
+                              )),
+                          if (isLatest) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text("LATEST", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                            ),
+                          ]
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -596,14 +726,15 @@ class _ExpandableText extends StatefulWidget {
 
 class _ExpandableTextState extends State<_ExpandableText> {
   bool _isExpanded = false;
-  static const int _maxLength = 220; // Increased length
+  static const int _maxLength = 500; // Increased for better readability
 
   @override
   Widget build(BuildContext context) {
-    if (widget.text.length <= _maxLength)
+    if (widget.text.length <= _maxLength) {
       return Text(widget.text,
-          style: const TextStyle(
-              fontSize: 14, height: 1.6, color: Color(0xFF2C3E50)));
+          style: TextStyle(
+              fontSize: 14, height: 1.6, color: Theme.of(context).textTheme.bodyMedium?.color));
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -612,8 +743,8 @@ class _ExpandableTextState extends State<_ExpandableText> {
           _isExpanded
               ? widget.text
               : "${widget.text.substring(0, _maxLength).trim()}...",
-          style: const TextStyle(
-              fontSize: 14, height: 1.6, color: Color(0xFF2C3E50)),
+          style: TextStyle(
+              fontSize: 14, height: 1.6, color: Theme.of(context).textTheme.bodyMedium?.color),
         ),
         const SizedBox(height: 4),
         GestureDetector(

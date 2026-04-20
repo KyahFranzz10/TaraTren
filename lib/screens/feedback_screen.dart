@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -31,28 +30,28 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     }
 
     setState(() => _isSubmitting = true);
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     final String version = '0.1.23+24';
     final String providedEmail = _emailController.text.trim();
     final String senderLabel = user?.email ?? (providedEmail.isNotEmpty ? providedEmail : 'Guest Commuter');
 
     try {
-      // 1. Silent Log to Firestore (Spark/Free Plan compatible)
-      await FirebaseFirestore.instance.collection('feedback').add({
+      // 1. Silent Log to Supabase (Table: feedback)
+      await Supabase.instance.client.from('feedback').insert({
         'content': text,
-        'userEmail': senderLabel,
-        'userName': user?.displayName ?? 'N/A',
-        'userId': user?.uid ?? 'guest_${DateTime.now().millisecondsSinceEpoch}',
-        'authProvider': user?.providerData.isNotEmpty == true ? user!.providerData[0].providerId : 'None',
-        'createdAt': FieldValue.serverTimestamp(),
-        'appName': 'TaraTren',
+        'user_email': senderLabel,
+        'user_name': user?.userMetadata?['display_name'] ?? user?.userMetadata?['name'] ?? 'N/A',
+        'user_id': user?.id ?? 'guest_${DateTime.now().millisecondsSinceEpoch}',
+        'auth_provider': user?.appMetadata['provider'] ?? 'None',
+        'created_at': DateTime.now().toIso8601String(),
+        'app_name': 'TaraTren',
         'version': version,
       });
 
-      // 2. Silent Email via Google Apps Script (Bypasses Blaze Paywall)
+      // 2. Silent Email via Google Apps Script
       final String mailBody = "Feedback from: $senderLabel\n"
-          "Display Name: ${user?.displayName ?? 'N/A'}\n"
-          "User UID: ${user?.uid ?? 'Guest'}\n"
+          "Display Name: ${user?.userMetadata?['display_name'] ?? 'N/A'}\n"
+          "User ID: ${user?.id ?? 'Guest'}\n"
           "App Version: $version\n\n"
           "User Feedback:\n$text";
 
@@ -137,7 +136,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 32),
-            if (FirebaseAuth.instance.currentUser?.email == null) ...[
+            if (Supabase.instance.client.auth.currentUser?.email == null) ...[
               const Text('Email Address (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
               const SizedBox(height: 8),
               TextField(
@@ -167,10 +166,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.blue.shade100,
-                      backgroundImage: FirebaseAuth.instance.currentUser?.photoURL != null 
-                        ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!) 
-                        : null,
-                      child: FirebaseAuth.instance.currentUser?.photoURL == null 
+                      backgroundImage: Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] != null 
+                        ? NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['avatar_url']) 
+                        : (Supabase.instance.client.auth.currentUser?.userMetadata?['picture'] != null 
+                            ? NetworkImage(Supabase.instance.client.auth.currentUser!.userMetadata!['picture']) 
+                            : null),
+                      child: (Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url'] == null && 
+                             Supabase.instance.client.auth.currentUser?.userMetadata?['picture'] == null)
                         ? const Icon(Icons.person, size: 16, color: Colors.blue) 
                         : null,
                     ),
@@ -180,11 +182,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            FirebaseAuth.instance.currentUser?.displayName ?? 'TaraTren Commuter',
+                            Supabase.instance.client.auth.currentUser?.userMetadata?['display_name'] ?? 
+                            Supabase.instance.client.auth.currentUser?.userMetadata?['name'] ?? 
+                            'TaraTren Commuter',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           Text(
-                            FirebaseAuth.instance.currentUser?.email ?? '',
+                            Supabase.instance.client.auth.currentUser?.email ?? '',
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                         ],

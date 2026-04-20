@@ -105,6 +105,17 @@ class Station {
     }
     return '$prefix${order.toString().padLeft(2, '0')}';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Station &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          line == other.line;
+
+  @override
+  int get hashCode => id.hashCode ^ line.hashCode;
 }
 
 class TrainLine {

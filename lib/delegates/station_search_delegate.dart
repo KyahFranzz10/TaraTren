@@ -5,10 +5,29 @@ import '../screens/station_detail_screen.dart';
 
 class StationSearchDelegate extends SearchDelegate<String> {
   @override
+  ThemeData appBarTheme(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.copyWith(
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: theme.brightness == Brightness.dark 
+            ? const Color(0xFF1E293B) 
+            : Colors.indigo,
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: InputBorder.none,
+        hintStyle: TextStyle(color: Colors.white60),
+      ),
+      textTheme: theme.textTheme.copyWith(
+        titleLarge: const TextStyle(color: Colors.white, fontSize: 18),
+      ),
+    );
+  }
+
+  @override
   List<Widget>? buildActions(BuildContext context) {
     return [
       IconButton(
-        icon: const Icon(Icons.clear),
+        icon: const Icon(Icons.clear, color: Colors.white),
         onPressed: () {
           query = '';
         },
@@ -19,7 +38,7 @@ class StationSearchDelegate extends SearchDelegate<String> {
   @override
   Widget? buildLeading(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.arrow_back),
+      icon: const Icon(Icons.arrow_back, color: Colors.white),
       onPressed: () {
         close(context, '');
       },
@@ -29,13 +48,13 @@ class StationSearchDelegate extends SearchDelegate<String> {
   @override
   Widget buildResults(BuildContext context) {
     final results = _search(query);
-    return _buildListView(results);
+    return _buildListView(context, results);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
     final results = _search(query);
-    return _buildListView(results);
+    return _buildListView(context, results);
   }
 
   List<Map<String, dynamic>> _search(String query) {
@@ -55,15 +74,20 @@ class StationSearchDelegate extends SearchDelegate<String> {
     }).toList();
   }
 
-  Widget _buildListView(List<Map<String, dynamic>> results) {
+  Widget _buildListView(BuildContext context, List<Map<String, dynamic>> results) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     if (results.isEmpty && query.isNotEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text("No stations, cities, or landmarks found.", style: TextStyle(color: Colors.grey, fontSize: 16)),
+            Icon(Icons.search_off, size: 64, color: isDark ? Colors.white38 : Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              "No stations or landmarks found.", 
+              style: TextStyle(color: isDark ? Colors.white38 : Colors.grey, fontSize: 16)
+            ),
           ],
         ),
       );
@@ -86,7 +110,12 @@ class StationSearchDelegate extends SearchDelegate<String> {
               color: Colors.white,
               shape: BoxShape.circle,
               border: Border.all(color: lineColor.withValues(alpha: 0.4), width: 1.5),
-              boxShadow: [BoxShadow(color: lineColor.withValues(alpha: 0.1), blurRadius: 4)],
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black26 : lineColor.withValues(alpha: 0.1), 
+                  blurRadius: 4
+                )
+              ],
             ),
             child: ClipOval(
               child: lineLogo.isNotEmpty
@@ -94,10 +123,24 @@ class StationSearchDelegate extends SearchDelegate<String> {
                 : Icon(Icons.train, color: lineColor, size: 24),
             ),
           ),
-          title: Text(station.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-          subtitle: Text("${station.line} • ${station.city}\n${station.landmark}", maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+          title: Text(
+            station.name, 
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              color: isDark ? Colors.white : const Color(0xFF1E293B)
+            )
+          ),
+          subtitle: Text(
+            "${station.line} • ${station.city}\n${station.landmark}", 
+            maxLines: 2, 
+            overflow: TextOverflow.ellipsis, 
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white60 : Colors.blueGrey
+            )
+          ),
           isThreeLine: true,
-          trailing: const Icon(Icons.chevron_right, size: 16),
+          trailing: Icon(Icons.chevron_right, size: 16, color: isDark ? Colors.white30 : Colors.grey),
           onTap: () {
             Navigator.push(
               context,

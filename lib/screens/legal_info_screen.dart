@@ -21,6 +21,7 @@ class LegalInfoScreen extends StatelessWidget {
                 '• Consent: By enabling location services, you consent to this collection for transit navigation purposes.',
             icon: Icons.privacy_tip,
             color: Colors.indigo,
+            context: context,
           ),
           const Divider(height: 32),
           _buildLegalSection(
@@ -31,6 +32,7 @@ class LegalInfoScreen extends StatelessWidget {
                 '• Reliability: Manila transit is unpredictable. Always listen to official station announcements and follow local transit personnel.',
             icon: Icons.warning_rounded,
             color: Colors.orange,
+            context: context,
           ),
           const Divider(height: 32),
           _buildLegalSection(
@@ -40,6 +42,7 @@ class LegalInfoScreen extends StatelessWidget {
                 '• Trademarks: All transit line names (LRT-1, LRT-2, MRT-3, PNR) and logos are property of their respective owners and are used here for identification and informational purposes only.',
             icon: Icons.info_outline,
             color: Colors.blueGrey,
+            context: context,
           ),
           const Divider(height: 32),
           _buildLegalSection(
@@ -49,6 +52,7 @@ class LegalInfoScreen extends StatelessWidget {
                 '• Transit Data: Community-sourced and Open GTFS Manila datasets.',
             icon: Icons.map,
             color: Colors.green,
+            context: context,
           ),
           const SizedBox(height: 40),
           const Center(
@@ -69,20 +73,26 @@ class LegalInfoScreen extends StatelessWidget {
     required String content,
     required IconData icon,
     required Color color,
+    required BuildContext context,
   }) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Adjust colors for dark mode to be more visible/vibrant
+    final Color effectiveColor = isDark ? Color.lerp(color, Colors.white, 0.4) ?? color : color;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, color: color, size: 20),
+            Icon(icon, color: effectiveColor, size: 20),
             const SizedBox(width: 10),
             Text(
               title,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: effectiveColor,
               ),
             ),
           ],
@@ -90,10 +100,10 @@ class LegalInfoScreen extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           content,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             height: 1.5,
-            color: Colors.black87,
+            color: Theme.of(context).textTheme.bodyMedium?.color ?? (isDark ? Colors.white70 : Colors.black87),
           ),
         ),
       ],

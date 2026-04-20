@@ -119,10 +119,14 @@ class StationListScreen extends StatelessWidget {
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05), 
+                    blurRadius: 15, 
+                    offset: const Offset(0, 5)
+                  ),
                 ],
               ),
               child: Column(
@@ -132,7 +136,10 @@ class StationListScreen extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(10)),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withOpacity(0.1), 
+                          borderRadius: BorderRadius.circular(10)
+                        ),
                         child: const Icon(Icons.access_time_filled_rounded, size: 20, color: Colors.indigo),
                       ),
                       const SizedBox(width: 12),
@@ -142,7 +149,7 @@ class StationListScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     isFutureLine ? "System opening dates to be announced by DOTr." : trainLine.fullSchedule,
-                    style: TextStyle(fontSize: 14, height: 1.5, color: Colors.grey.shade800),
+                    style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
                   ),
                   if (!isFutureLine) ...[
                     const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
@@ -150,7 +157,10 @@ class StationListScreen extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1), 
+                            borderRadius: BorderRadius.circular(10)
+                          ),
                           child: const Icon(Icons.payments_rounded, size: 20, color: Colors.green),
                         ),
                         const SizedBox(width: 12),
@@ -169,17 +179,20 @@ class StationListScreen extends StatelessWidget {
                           ),
                         )),
                     
-                    // ── OUR FLEET SECTION ──────────────────────
+                    // ── ROLLING STOCK SECTION ──────────────────────
                     const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1), 
+                            borderRadius: BorderRadius.circular(10)
+                          ),
                           child: const Icon(Icons.train_rounded, size: 20, color: Colors.blue),
                         ),
                         const SizedBox(width: 12),
-                        const Text('Our Fleet', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                        const Text('Rolling Stock', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -187,7 +200,7 @@ class StationListScreen extends StatelessWidget {
                       height: 100,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
-                        children: _getTrainsForLine(trainLine.name).map((train) => _buildTrainCard(train['name']!, train['path']!)).toList(),
+                        children: _getTrainsForLine(trainLine.name).map((train) => _buildTrainCard(context, train['name']!, train['path']!)).toList(),
                       ),
                     ),
                   ] else ...[
@@ -205,7 +218,7 @@ class StationListScreen extends StatelessWidget {
                       height: 100,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
-                        children: _getTrainsForLine(trainLine.name).map((train) => _buildTrainCard(train['name']!, train['path']!)).toList(),
+                        children: _getTrainsForLine(trainLine.name).map((train) => _buildTrainCard(context, train['name']!, train['path']!)).toList(),
                       ),
                     ),
                   ],
@@ -224,7 +237,7 @@ class StationListScreen extends StatelessWidget {
                   return Column(
                     children: [
                       _buildStationTile(context, station),
-                      if (!isLast) _buildTravelTimeDivider(index),
+                      if (!isLast) _buildTravelTimeDivider(context, index),
                     ],
                   );
                 },
@@ -264,7 +277,11 @@ class StationListScreen extends StatelessWidget {
           Expanded(
             child: Text(
               station.name,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF1F2937)),
+              style: TextStyle(
+                fontWeight: FontWeight.w900, 
+                fontSize: 17, 
+                color: Theme.of(context).textTheme.titleLarge?.color
+              ),
             ),
           ),
           if (station.isExtension)
@@ -281,7 +298,7 @@ class StationListScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (station.landmark != "Not specified.")
-              Text(station.landmark, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.2)),
+              Text(station.landmark, style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor, height: 1.2)),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -306,8 +323,8 @@ class StationListScreen extends StatelessWidget {
       ),
       trailing: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-        child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+        decoration: BoxDecoration(color: Theme.of(context).dividerColor.withOpacity(0.05), shape: BoxShape.circle),
+        child: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Theme.of(context).hintColor),
       ),
       onTap: () {
         Navigator.push(
@@ -318,7 +335,7 @@ class StationListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTravelTimeDivider(int index) {
+  Widget _buildTravelTimeDivider(BuildContext context, int index) {
     final s1 = trainLine.stations[index];
     final s2 = trainLine.stations[index + 1];
     final minutes = _getTravelTime(s1, s2);
@@ -345,13 +362,13 @@ class StationListScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade200),
               ),
               child: Text(
                 "$minutes mins travel",
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 10, color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : Colors.grey.shade500, fontWeight: FontWeight.bold),
               ),
             ),
           Expanded(child: Container()),
@@ -420,14 +437,14 @@ class StationListScreen extends StatelessWidget {
     return [];
   }
 
-  Widget _buildTrainCard(String name, String path) {
+  Widget _buildTrainCard(BuildContext context, String name, String path) {
     return Container(
       width: 150,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -440,7 +457,11 @@ class StationListScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
               child: Text(
                 name,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                style: TextStyle(
+                  fontSize: 10, 
+                  fontWeight: FontWeight.bold, 
+                  color: Theme.of(context).textTheme.bodySmall?.color
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notification_service.dart';
 import '../data/mock_data.dart';
 
@@ -22,16 +22,15 @@ class TransitAlert {
     this.isVisionVerified = false,
   });
 
-  factory TransitAlert.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory TransitAlert.fromSupabase(Map<String, dynamic> data) {
     return TransitAlert(
-      id: doc.id,
+      id: data['id'].toString(),
       title: data['title'] ?? 'Service Update',
       message: data['message'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-      isBreaking: data['isBreaking'] ?? false,
-      imageUrl: data['imageUrl'],
-      isVisionVerified: data['isVisionVerified'] ?? false,
+      timestamp: DateTime.parse(data['timestamp'] ?? DateTime.now().toIso8601String()),
+      isBreaking: data['is_breaking'] ?? false,
+      imageUrl: data['image_url'],
+      isVisionVerified: data['is_vision_verified'] ?? false,
     );
   }
 }
@@ -57,7 +56,7 @@ class TransitAlertService {
   factory TransitAlertService() => _instance;
   TransitAlertService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _supabase = Supabase.instance.client;
   final NotificationService _notificationService = NotificationService();
   
   final StreamController<List<TransitAlert>> _alertsController = StreamController<List<TransitAlert>>.broadcast();
@@ -78,13 +77,13 @@ class TransitAlertService {
   }
 
   void _startAlertsListener() {
-    _firestore
-        .collection('transit_alerts')
-        .orderBy('timestamp', descending: true)
+    _supabase
+        .from('transit_alerts')
+        .stream(primaryKey: ['id'])
+        .order('timestamp', ascending: false)
         .limit(10)
-        .snapshots()
-        .listen((snapshot) {
-      final alerts = snapshot.docs.map((doc) => TransitAlert.fromFirestore(doc)).toList();
+        .listen((data) {
+      final alerts = data.map((json) => TransitAlert.fromSupabase(json)).toList();
       _alertsController.add(alerts);
 
       // Notify for new breaking alerts, avoiding spam
@@ -107,9 +106,9 @@ class TransitAlertService {
     });
 
     // Seed notified IDs with existing ones to avoid immediate popups of old alerts on app start
-    _firestore.collection('transit_alerts').limit(10).get().then((value) {
-      for (var doc in value.docs) {
-        _notifiedAlertIds.add(doc.id);
+    _supabase.from('transit_alerts').select('id').limit(10).then((value) {
+      for (var row in value as List) {
+        _notifiedAlertIds.add(row['id'].toString());
       }
     });
   }

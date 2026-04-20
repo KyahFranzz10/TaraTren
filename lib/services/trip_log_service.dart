@@ -1,5 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TripLog {
   final String id;
@@ -20,43 +19,39 @@ class TripLog {
 
   Map<String, dynamic> toMap() {
     return {
-      'fromStation': fromStation,
-      'toStation': toStation,
-      'line': line,
+      'from_station': fromStation,
+      'to_station': toStation,
+      'line_name': line,
       'fare': fare,
-      'timestamp': timestamp,
+      'timestamp': timestamp.toIso8601String(),
     };
   }
 
-  factory TripLog.fromMap(String id, Map<String, dynamic> map) {
+  factory TripLog.fromMap(Map<String, dynamic> map) {
     return TripLog(
-      id: id,
-      fromStation: map['fromStation'],
-      toStation: map['toStation'],
-      line: map['line'],
-      fare: map['fare'],
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      id: map['id'].toString(),
+      fromStation: map['from_station'] ?? '',
+      toStation: map['to_station'] ?? '',
+      line: map['line_name'] ?? '',
+      fare: (map['fare'] as num?)?.toDouble() ?? 0.0,
+      timestamp: DateTime.parse(map['timestamp'] ?? DateTime.now().toIso8601String()),
     );
   }
 }
 
 class TripLogService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final _supabase = Supabase.instance.client;
 
   Stream<List<TripLog>> getTripLogs() {
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return Stream.value([]);
 
-    return _db
-        .collection('users')
-        .doc(user.uid)
-        .collection('trips')
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TripLog.fromMap(doc.id, doc.data()))
-            .toList());
+    return _supabase
+        .from('trips')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', user.id)
+        .order('timestamp', ascending: false)
+        .map((data) => data.map((json) => TripLog.fromMap(json)).toList());
   }
 
   Future<void> logTrip({
@@ -65,36 +60,26 @@ class TripLogService {
     required String line,
     required double fare,
   }) async {
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return;
 
-    await _db
-        .collection('users')
-        .doc(user.uid)
-        .collection('trips')
-        .add({
-      'fromStation': from,
-      'toStation': to,
-      'line': line,
+    await _supabase.from('trips').insert({
+      'user_id': user.id,
+      'from_station': from,
+      'to_station': to,
+      'line_name': line,
       'fare': fare,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now().toIso8601String(),
     });
   }
 
   Future<void> clearLogs() async {
-    final user = _auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return;
 
-    final snapshot = await _db
-        .collection('users')
-        .doc(user.uid)
-        .collection('trips')
-        .get();
-
-    final batch = _db.batch();
-    for (var doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
+    await _supabase
+        .from('trips')
+        .delete()
+        .eq('user_id', user.id);
   }
 }

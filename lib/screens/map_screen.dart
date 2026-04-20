@@ -15,6 +15,7 @@ import '../services/location_service.dart';
 import '../services/navigation_controller.dart';
 import '../services/geojson_service.dart';
 import '../widgets/cached_tile_provider.dart';
+import '../services/route_planner_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -42,6 +43,10 @@ class _MapScreenState extends State<MapScreen> {
   List<Polygon> _geoPolygons = [];
   List<Polyline> _geoPolylines = [];
   bool _isLoadingGeoJson = true;
+
+  // Active Route Navigation
+  PlannedRoute? _activeRoute;
+  final Map<String, LatLng> _stationCoordMap = {};
 
   @override
   void initState() {
@@ -76,6 +81,47 @@ class _MapScreenState extends State<MapScreen> {
     });
 
     _loadGeoJsonData();
+    _initStationCoords();
+    
+    NavigationController().activeRoute.addListener(_handleActiveRoute);
+  }
+
+  void _initStationCoords() {
+    for (var s in metroStations) {
+      if (s['isExtension'] != true) {
+        _stationCoordMap[s['name']] = LatLng(
+          (s['lat'] as num).toDouble(),
+          (s['lng'] as num).toDouble(),
+        );
+      }
+    }
+  }
+
+  void _handleActiveRoute() {
+    if (mounted) {
+      setState(() {
+        _activeRoute = NavigationController().activeRoute.value;
+      });
+      if (_activeRoute != null) {
+        _fitRouteBounds(_activeRoute!);
+      }
+    }
+  }
+
+  void _fitRouteBounds(PlannedRoute route) {
+    final List<LatLng> points = [];
+    for (var leg in route.legs) {
+      final s = _stationCoordMap[leg.fromStation];
+      final e = _stationCoordMap[leg.toStation];
+      if (s != null) points.add(s);
+      if (e != null) points.add(e);
+    }
+    if (points.isNotEmpty && _mapReady) {
+       // Just move to center for now, or use fitBounds if supported by your flutter_map version
+       double avgLat = points.map((p) => p.latitude).reduce((a, b) => a + b) / points.length;
+       double avgLng = points.map((p) => p.longitude).reduce((a, b) => a + b) / points.length;
+       _mapController.move(LatLng(avgLat, avgLng), 14.0);
+    }
   }
 
   Future<void> _loadGeoJsonData() async {
@@ -132,6 +178,7 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     LocationService().currentPosition.removeListener(_onLocationUpdate);
     NavigationController().focusedStation.removeListener(_handleFocusedStation);
+    NavigationController().activeRoute.removeListener(_handleActiveRoute);
     _trainTimer?.cancel();
     _liveSubscription?.cancel();
     _simulationTimer?.cancel();
@@ -178,8 +225,8 @@ class _MapScreenState extends State<MapScreen> {
 
     final String? activeTrack = isAtStation ? stationLine : _getTrackLineForMap(userPos);
     if (activeTrack != null) {
-      final String trainId = "T-${activeTrack}-${user.uid.substring(0, 5)}";
-      await _liveService.reportLocation(trainId, activeTrack, userPos, user.uid);
+      final String trainId = "T-${activeTrack}-${user.id.substring(0, 5)}";
+      await _liveService.reportLocation(trainId, activeTrack, userPos, user.id);
     }
   }
 
@@ -359,15 +406,18 @@ class _MapScreenState extends State<MapScreen> {
               polylines: [
                 ..._geoPolylines,
                 if (!hasGeoData) ...[
-                  Polyline(points: getLinePoints('LRT1'), color: getLineColor('LRT1').withValues(alpha: 0.6), strokeWidth: 5.0),
-                  Polyline(points: getLinePoints('LRT2'), color: getLineColor('LRT2').withValues(alpha: 0.6), strokeWidth: 5.0),
-                  Polyline(points: getLinePoints('MRT3'), color: getLineColor('MRT3').withValues(alpha: 0.6), strokeWidth: 5.0),
+                  Polyline(points: getLinePoints('LRT1'), color: getLineColor('LRT1').withOpacity(0.6), strokeWidth: 5.0),
+                  Polyline(points: getLinePoints('LRT2'), color: getLineColor('LRT2').withOpacity(0.6), strokeWidth: 5.0),
+                  Polyline(points: getLinePoints('MRT3'), color: getLineColor('MRT3').withOpacity(0.6), strokeWidth: 5.0),
                 ],
+                if (_activeRoute != null) ..._buildActiveRoutePolylines(),
               ],
             ),
             MarkerLayer(
               markers: [
                 ...metroStations.where((s) => s['isExtension'] != true).map((stationMap) {
+                  // ... logic ...
+                  // (Using existing logic here, just adding the active route markers below)
                   final line = stationMap['line'];
                   final markerColor = getLineColor(line);
                   return Marker(
@@ -384,7 +434,7 @@ class _MapScreenState extends State<MapScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: Colors.white.withOpacity(0.9),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(color: markerColor, width: 0.5),
                                   boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
@@ -417,7 +467,9 @@ class _MapScreenState extends State<MapScreen> {
                   );
                 }),
                 ..._buildCombinedTrainMarkers(),
+                if (_activeRoute != null) ..._buildActiveRouteMarkers(),
                 if (_currentPosition != null)
+// ... (rest of markers)
                   Marker(
                     point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
                     width: 60,
@@ -426,7 +478,7 @@ class _MapScreenState extends State<MapScreen> {
                       alignment: Alignment.center,
                       children: [
                         // Ripple effect
-                        Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.15), shape: BoxShape.circle)),
+                        Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.blue.withOpacity(0.15), shape: BoxShape.circle)),
                         // Heading indicator
                         Transform.rotate(
                           angle: _currentPosition!.heading * (3.14159 / 180),
@@ -434,7 +486,7 @@ class _MapScreenState extends State<MapScreen> {
                             width: 50,
                             height: 50,
                             alignment: Alignment.topCenter,
-                            child: Icon(Icons.navigation, color: Colors.blue.withValues(alpha: 0.8), size: 16),
+                            child: Icon(Icons.navigation, color: Colors.blue.withOpacity(0.8), size: 16),
                           ),
                         ),
                         // User dot
@@ -446,87 +498,131 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ],
         ),
+        // Active Route Overlay UI
+        if (_activeRoute != null)
+          Positioned(
+            top: 20,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1B3E).withOpacity(0.95),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10)],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.navigation_rounded, color: Colors.blueAccent),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('LIVE NAVIGATION', style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text(
+                          'To ${_activeRoute!.legs.last.toStation}',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: () {
+                      NavigationController().activeRoute.value = null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // Categorized Map Controls
         Positioned(
           right: 16,
-          bottom: 16,
+          top: 100, // Positioned below any top overlays
           child: Column(
             children: [
-              FloatingActionButton(
-                heroTag: 'satellite',
-                mini: true,
-                backgroundColor: _isSatellite ? Colors.blueGrey.shade800 : Colors.white,
-                onPressed: () => setState(() => _isSatellite = !_isSatellite),
-                child: Icon(
-                  _isSatellite ? Icons.map : Icons.satellite_alt,
-                  color: _isSatellite ? Colors.white : Colors.blueGrey.shade800,
+              // --- VIEW GROUP ---
+              _buildControlGroup([
+                _mapControlButton(
+                  icon: _isSatellite ? Icons.map : Icons.satellite_alt,
+                  color: _isSatellite ? Colors.indigo : Colors.blueGrey.shade700,
+                  isActive: _isSatellite,
+                  onPressed: () => setState(() => _isSatellite = !_isSatellite),
+                  tooltip: 'Satellite View',
                 ),
-              ),
-              const SizedBox(height: 10),
-              FloatingActionButton(
-                heroTag: 'labels',
-                mini: true,
-                backgroundColor: _showLabels ? Colors.indigo : Colors.white,
-                onPressed: () => setState(() => _showLabels = !_showLabels),
-                child: Icon(
-                  _showLabels ? Icons.label : Icons.label_off,
-                  color: _showLabels ? Colors.white : Colors.indigo,
+                _mapControlButton(
+                  icon: _showLabels ? Icons.label : Icons.label_off,
+                  color: Colors.indigo,
+                  isActive: _showLabels,
+                  onPressed: () => setState(() => _showLabels = !_showLabels),
+                  tooltip: 'Show Labels',
                 ),
-              ),
-              const SizedBox(height: 10),
-              FloatingActionButton(
-                heroTag: 'info',
-                mini: true,
-                backgroundColor: Colors.white,
-                onPressed: () => _showSimulationInfo(),
-                child: const Icon(Icons.help_outline, color: Colors.blueGrey),
-              ),
-              const SizedBox(height: 10),
-              FloatingActionButton(
-                heroTag: 'island_open',
-                mini: true,
-                backgroundColor: Colors.indigo,
-                onPressed: () async {
-                  final lService = LocationService();
-                  lService.manuallyOpenedIsland = true;
-                  await SystemOverlayService().show(
-                    nextStation: lService.nextStationName.value ?? 'Search...',
-                    line: lService.onboardLine.value ?? 'LRT1',
-                    speed: (lService.currentSpeed.value?.toInt() ?? 0),
-                    isArrivalAlert: lService.islandStatusLabel.value?.contains("Arriving") ?? false,
-                    bodyText: lService.islandBodyText.value,
-                    prevStation: lService.prevStationName.value ?? '--',
-                    currentStation: lService.currentStationOnboard.value ?? 'Awaiting Signal',
-                    statusLabel: lService.islandStatusLabel.value ?? 'STANDBY',
-                    distance: lService.distanceToNext.value ?? 0.0,
-                    pace: 'Scan',
-                    isSouthbound: lService.currentDirection.value == 'SOUTHBOUND',
-                  );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dynamic Island Force-Opened!')),
+              ]),
+              const SizedBox(height: 16),
+              // --- SYSTEM GROUP ---
+              _buildControlGroup([
+                _mapControlButton(
+                  icon: Icons.picture_in_picture_alt,
+                  color: Colors.orange.shade700,
+                  onPressed: () async {
+                    final lService = LocationService();
+                    LocationService().manuallyOpenedIsland.value = true;
+                    await SystemOverlayService().show(
+                      nextStation: lService.nextStationName.value ?? 'Search...',
+                      line: lService.onboardLine.value ?? 'LRT1',
+                      speed: (lService.currentSpeed.value?.toInt() ?? 0),
+                      isArrivalAlert: lService.islandStatusLabel.value?.contains("Arriving") ?? false,
+                      bodyText: lService.islandBodyText.value,
+                      prevStation: lService.prevStationName.value ?? '--',
+                      currentStation: lService.currentStationOnboard.value ?? 'Awaiting Signal',
+                      statusLabel: lService.islandStatusLabel.value ?? 'STANDBY',
+                      distance: lService.distanceToNext.value ?? 0.0,
+                      pace: 'Scan',
+                      isSouthbound: lService.currentDirection.value == 'SOUTHBOUND',
                     );
-                  }
-                },
-                child: const Icon(Icons.picture_in_picture_alt, color: Colors.white),
-              ),
-              FloatingActionButton(
-                heroTag: 'gps', 
-                mini: true, 
-                backgroundColor: _followUser ? Colors.blue : Colors.white, 
-                onPressed: _centerOnUser, 
-                child: Icon(Icons.my_location, color: _followUser ? Colors.white : Colors.blue)
-              ),
-              const SizedBox(height: 10),
-              FloatingActionButton(heroTag: 'refresh', mini: true, backgroundColor: Colors.white, onPressed: () => setState(() {}), child: const Icon(Icons.refresh, color: Colors.green)),
+                  },
+                  tooltip: 'Dynamic Island',
+                ),
+                _mapControlButton(
+                  icon: Icons.help_outline,
+                  color: Colors.blueGrey,
+                  onPressed: () => _showSimulationInfo(),
+                  tooltip: 'Map Info',
+                ),
+              ]),
             ],
           ),
+        ),
+        
+        // Navigation Controls Group (Bottom Right)
+        Positioned(
+          right: 16,
+          bottom: 24,
+          child: _buildControlGroup([
+            _mapControlButton(
+              icon: Icons.my_location,
+              color: Colors.blue,
+              isActive: _followUser,
+              onPressed: _centerOnUser,
+              tooltip: 'Center on Me',
+            ),
+            _mapControlButton(
+              icon: Icons.refresh,
+              color: Colors.green,
+              onPressed: () => setState(() {}),
+              tooltip: 'Refresh Map',
+            ),
+          ]),
         ),
         Positioned(
           left: 10,
           top: 10,
           child: Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)]),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(8), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)]),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -545,7 +641,7 @@ class _MapScreenState extends State<MapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.95),
+                color: Colors.redAccent.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 4))],
               ),
@@ -654,6 +750,50 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  List<Polyline> _buildActiveRoutePolylines() {
+    final List<Polyline> list = [];
+    for (var leg in _activeRoute!.legs) {
+      final s = _stationCoordMap[leg.fromStation];
+      final e = _stationCoordMap[leg.toStation];
+      if (s != null && e != null) {
+        list.add(Polyline(
+          points: [s, e],
+          color: leg.type == LegType.ride ? getLineColor(leg.line) : Colors.white,
+          strokeWidth: leg.type == LegType.ride ? 6.0 : 3.0,
+          isDotted: leg.type == LegType.walk,
+        ));
+      }
+    }
+    return list;
+  }
+
+  List<Marker> _buildActiveRouteMarkers() {
+    final List<Marker> list = [];
+    for (var leg in _activeRoute!.legs) {
+      final s = _stationCoordMap[leg.fromStation];
+      if (s != null) {
+        list.add(Marker(
+          point: s,
+          width: 30, height: 30,
+          child: Container(
+            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
+            child: Icon(leg.type == LegType.ride ? Icons.train : Icons.directions_walk, size: 16, color: Colors.black87),
+          ),
+        ));
+      }
+    }
+    // Final destination marker
+    final last = _stationCoordMap[_activeRoute!.legs.last.toStation];
+    if (last != null) {
+      list.add(Marker(
+        point: last,
+        width: 40, height: 40,
+        child: const Icon(Icons.location_on, color: Colors.redAccent, size: 40),
+      ));
+    }
+    return list;
+  }
+
   void _showSimulationInfo() {
     showDialog(
       context: context,
@@ -696,7 +836,7 @@ class _MapScreenState extends State<MapScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, -5))],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -721,7 +861,7 @@ class _MapScreenState extends State<MapScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [markerColor.withValues(alpha: 0.05), markerColor.withValues(alpha: 0.2)],
+                    colors: [markerColor.withOpacity(0.05), markerColor.withOpacity(0.2)],
                   ),
                 ),
               ),
@@ -744,7 +884,7 @@ class _MapScreenState extends State<MapScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: markerColor.withValues(alpha: 0.3), width: 1)),
+                        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: markerColor.withOpacity(0.3), width: 1)),
                         child: ClipOval(
                           child: Image.asset(
                             stationMap['line'] == 'MRT3' ? 'assets/image/MRT3.jpg' : 'assets/image/LRTA.png',
@@ -782,9 +922,9 @@ class _MapScreenState extends State<MapScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: markerColor.withValues(alpha: 0.1),
+                            color: markerColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: markerColor.withValues(alpha: 0.3)),
+                            border: Border.all(color: markerColor.withOpacity(0.3)),
                           ),
                           child: Text(
                             stationMap['code'],
@@ -818,7 +958,7 @@ class _MapScreenState extends State<MapScreen> {
                   if (isTransfer)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.indigo.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.indigo.withValues(alpha: 0.2))),
+                      decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.indigo.withOpacity(0.2))),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -879,6 +1019,65 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
   }
+
+  Widget _buildControlGroup(List<Widget> children) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: children.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final child = entry.value;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              child,
+              if (idx < children.length - 1)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Colors.black.withOpacity(0.05),
+                  indent: 8,
+                  endIndent: 8,
+                ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _mapControlButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    String? tooltip,
+    bool isActive = false,
+  }) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          color: isActive ? color : color.withOpacity(0.5),
+          size: 20,
+        ),
+      ),
+    );
+  }
 }
 
 class PulseMarker extends StatefulWidget {
@@ -914,14 +1113,13 @@ class _PulseMarkerState extends State<PulseMarker> with SingleTickerProviderStat
         height: 45,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.red.withValues(alpha: 0.4), width: 2),
-          boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.2), blurRadius: 10, spreadRadius: 2)],
+          border: Border.all(color: Colors.red.withOpacity(0.4), width: 2),
+          boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.2), blurRadius: 10, spreadRadius: 2)],
         ),
       ),
     );
   }
 }
-
 
 class AnimatedStationMarker extends StatefulWidget {
   final Widget child;

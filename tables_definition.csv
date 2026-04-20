@@ -1,0 +1,48 @@
+Table Name,Column,Type,Primary Key,Notes
+profiles,id,UUID,Yes,References auth.users
+profiles,email,TEXT,No,
+profiles,display_name,TEXT,No,
+profiles,avatar_url,TEXT,No,
+profiles,updated_at,TIMESTAMP,No,
+favorites,id,BIGINT,Yes,Identity
+favorites,user_id,UUID,No,References auth.users
+favorites,station_name,TEXT,No,
+favorites,added_at,TIMESTAMP,No,
+trips,id,BIGINT,Yes,Identity
+trips,user_id,UUID,No,References auth.users
+trips,from_station,TEXT,No,
+trips,to_station,TEXT,No,
+trips,line_name,TEXT,No,
+trips,fare,FLOAT,No,
+trips,timestamp,TIMESTAMP,No,
+live_trains,trainset_id,TEXT,Yes,
+live_trains,line_name,TEXT,No,
+live_trains,latitude,FLOAT,No,
+live_trains,longitude,FLOAT,No,
+live_trains,direction,TEXT,No,
+live_trains,heading,FLOAT,No,
+live_trains,reported_by,TEXT,No,
+live_trains,updated_at,TIMESTAMP,No,
+crowd_presence,user_id,UUID,Yes,
+crowd_presence,station_id,TEXT,No,
+crowd_presence,updated_at,TIMESTAMP,No,
+social_crowd_reports,id,BIGINT,Yes,Identity
+social_crowd_reports,station_id,TEXT,No,
+social_crowd_reports,status,TEXT,No,
+social_crowd_reports,timestamp,TIMESTAMP,No,
+transit_alerts,id,BIGINT,Yes,Identity
+transit_alerts,title,TEXT,No,
+transit_alerts,message,TEXT,No,
+transit_alerts,is_breaking,BOOLEAN,No,
+transit_alerts,image_url,TEXT,No,
+transit_alerts,is_vision_verified,BOOLEAN,No,
+transit_alerts,timestamp,TIMESTAMP,No,
+feedback,id,BIGINT,Yes,Identity
+feedback,content,TEXT,No,
+feedback,user_email,TEXT,No,
+feedback,user_name,TEXT,No,
+feedback,user_id,TEXT,No,
+feedback,auth_provider,TEXT,No,
+feedback,app_name,TEXT,No,
+feedback,version,TEXT,No,
+feedback,created_at,TIMESTAMP,No,

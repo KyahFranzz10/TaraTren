@@ -6,6 +6,8 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'legal_info_screen.dart';
 import 'about_developer_screen.dart';
 import '../services/system_overlay_service.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -21,6 +23,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _voiceLanguage;
   late String _voicePack;
   late String _userType;
+  late ThemeMode _themeMode;
+  final AuthService _auth = AuthService();
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -31,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _voiceLanguage = SettingsService().voiceLanguage;
     _voicePack = SettingsService().voicePack;
     _userType = SettingsService().userType;
+    _themeMode = SettingsService().themeMode;
   }
 
   @override
@@ -41,14 +47,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('Notifications', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Notifications', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           SwitchListTile(
             title: const Text('Voice Announcements'),
             subtitle: const Text('Speak station arrivals and alerts'),
-            secondary: const Icon(Icons.record_voice_over, color: Colors.indigo),
+            secondary: Icon(Icons.record_voice_over, color: Theme.of(context).colorScheme.primary),
             value: _voiceEnabled,
             onChanged: (value) async {
               setState(() => _voiceEnabled = value);
@@ -63,7 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (_voiceEnabled)
             ListTile(
               title: const Text('Announcement Language'),
-              leading: const Icon(Icons.translate, color: Colors.indigo),
+              leading: Icon(Icons.translate, color: Theme.of(context).colorScheme.primary),
               trailing: DropdownButton<String>(
                 value: _voiceLanguage,
                 underline: const SizedBox(),
@@ -84,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(
               title: const Text('Voice Pack Style'),
               subtitle: const Text('Personality of the announcements'),
-              leading: const Icon(Icons.style, color: Colors.indigo),
+              leading: Icon(Icons.style, color: Theme.of(context).colorScheme.primary),
               trailing: DropdownButton<String>(
                 value: _voicePack,
                 underline: const SizedBox(),
@@ -103,14 +109,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('Data & Connectivity', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Appearance', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                _themeCard(ThemeMode.light, Icons.light_mode, "Light"),
+                const SizedBox(width: 12),
+                _themeCard(ThemeMode.dark, Icons.dark_mode, "Dark"),
+                const SizedBox(width: 12),
+                _themeCard(ThemeMode.system, Icons.brightness_auto, "System"),
+              ],
+            ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Data & Connectivity', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           SwitchListTile(
             title: const Text('Offline Mode'),
             subtitle: const Text('Save data and battery. Station alerts and voice announcements still work via GPS.'),
-            secondary: const Icon(Icons.signal_wifi_off, color: Colors.indigo),
+            secondary: Icon(Icons.signal_wifi_off, color: Theme.of(context).colorScheme.primary),
             value: _offlineMode,
             onChanged: (value) async {
               setState(() => _offlineMode = value);
@@ -118,20 +141,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('Fare Profile', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Fare Profile', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           ListTile(
             title: const Text('Travel Card Type'),
             subtitle: Text(_userType == 'normal' ? 'Single Journey (Full Fare)' : 
                            _userType == 'beep' ? 'Beep Card (Standard Discount)' : 
                            _userType == 'senior' ? 'Senior Citizen (50% Off)' : 'Student (50% Off)'),
-            leading: const Icon(Icons.credit_card, color: Colors.indigo),
+            leading: Icon(Icons.credit_card, color: Theme.of(context).colorScheme.primary),
             trailing: const Icon(Icons.edit, size: 18),
             onTap: () {
                _showUserTypeDialog();
             },
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Live Tracking & Overlays', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           FutureBuilder<bool>(
             future: FlutterOverlayWindow.isPermissionGranted(),
@@ -139,39 +167,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final permissionGranted = snapshot.data ?? false;
               final bool isEnabled = SettingsService().isSystemIslandEnabled;
 
-              return SwitchListTile(
-                title: const Text('System Dynamic Island'),
-                subtitle: Text(!permissionGranted 
-                  ? 'Tap to grant overlay permission' 
-                  : (isEnabled ? 'Floating pill active' : 'Floating pill disabled')),
-                secondary: const Icon(Icons.layers, color: Colors.indigo),
-                value: isEnabled && permissionGranted,
-                onChanged: (value) async {
-                  if (value) {
-                    if (!permissionGranted) {
-                      await FlutterOverlayWindow.requestPermission();
-                    } else {
-                      await SettingsService().setSystemIslandEnabled(true);
-                      setState(() {});
-                    }
-                  } else {
-                    await SettingsService().setSystemIslandEnabled(false);
-                    await SystemOverlayService().hide();
-                    setState(() {});
-                  }
-                },
+              return Column(
+                children: [
+                   SwitchListTile(
+                    title: const Text('System Dynamic Island'),
+                    subtitle: Text(!permissionGranted 
+                      ? 'Tap to grant overlay permission' 
+                      : (isEnabled ? 'Floating pill active' : 'Floating pill disabled')),
+                    secondary: Icon(Icons.layers, color: Theme.of(context).colorScheme.primary),
+                    value: isEnabled && permissionGranted,
+                    onChanged: (value) async {
+                      if (value) {
+                        if (!permissionGranted) {
+                          await FlutterOverlayWindow.requestPermission();
+                        } else {
+                          await SettingsService().setSystemIslandEnabled(true);
+                          setState(() {});
+                        }
+                      } else {
+                        await SettingsService().setSystemIslandEnabled(false);
+                        await SystemOverlayService().hide();
+                        setState(() {});
+                      }
+                    },
+                  ),
+                  if (permissionGranted && isEnabled)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0D1B3E), Color(0xFF1E3A8A)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Island Management", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  Text("Manually toggle the floating journey pill", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final svc = SystemOverlayService();
+                                final bool active = await svc.isActive();
+                                if (active) {
+                                  LocationService().manuallyOpenedIsland.value = false;
+                                  await svc.hide();
+                                } else {
+                                  LocationService().manuallyOpenedIsland.value = true;
+                                  // Show base standby state
+                                  await svc.show(
+                                    nextStation: 'Search...',
+                                    line: 'LRT1',
+                                    speed: 0,
+                                    isArrivalAlert: false,
+                                    bodyText: 'Waiting for train detection...',
+                                    prevStation: '--',
+                                    currentStation: 'STANDBY',
+                                    statusLabel: 'SEARCHING',
+                                    distance: 0.0,
+                                    pace: 'SCAN',
+                                    isSouthbound: true,
+                                  );
+                                }
+                                setState(() {});
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                              child: const Text("TOGGLE", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('Battery & Optimization', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Battery & Optimization', style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontWeight: FontWeight.bold)),
           ),
           SwitchListTile(
             title: const Text('Power Saving Mode'),
             subtitle: const Text('Adaptive GPS accuracy to extend battery life during long commutes'),
-            secondary: const Icon(Icons.battery_saver, color: Colors.orange),
+            secondary: Icon(Icons.battery_saver, color: Theme.of(context).colorScheme.secondary),
             value: _powerSaving,
             onChanged: (value) async {
               setState(() => _powerSaving = value);
@@ -190,16 +284,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('Background Optimization'),
             subtitle: const Text('Ensure TaraTren isn\'t closed by the system during long train rides'),
-            leading: const Icon(Icons.flash_on, color: Colors.orange),
+            leading: Icon(Icons.flash_on, color: Theme.of(context).colorScheme.secondary),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               _showBatteryOptimizationInstructions();
             },
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('System Status', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('System Status', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           const ListTile(
             title: Text('High Accuracy Tracking'),
@@ -212,14 +306,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Icon(Icons.check_circle, color: Colors.green),
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text('About', style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Account Management', style: TextStyle(color: Colors.red.shade400, fontWeight: FontWeight.bold)),
+          ),
+          ListTile(
+            title: const Text('Delete Account', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Permanently remove all your data'),
+            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            trailing: _isDeleting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.chevron_right),
+            onTap: _isDeleting ? null : _handleDeleteAccount,
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('About', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
           ListTile(
             title: const Text('About the Developer'),
             subtitle: const Text('Meet the creator of TaraTren'),
-            leading: const Icon(Icons.person_pin, color: Colors.redAccent),
+            leading: Icon(Icons.person_pin, color: Theme.of(context).colorScheme.secondary),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
@@ -231,7 +337,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('Legal & Privacy Info'),
             subtitle: const Text('DPA 2012, Terms, and Disclaimers'),
-            leading: const Icon(Icons.description, color: Colors.indigo),
+            leading: Icon(Icons.description, color: Theme.of(context).colorScheme.primary),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
@@ -250,15 +356,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 12),
-                const Text(
-                  'v0.2.2-Alpha',
-                  style: TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold, fontSize: 13),
+                Text(
+                  'v0.3.0',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _themeCard(ThemeMode mode, IconData icon, String label) {
+    final bool isSelected = _themeMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          setState(() => _themeMode = mode);
+          await SettingsService().setThemeMode(mode);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.withOpacity(0.3),
+              width: 1.5,
+            ),
+            boxShadow: isSelected ? [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              )
+            ] : null,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 28),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -343,5 +494,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleDeleteAccount() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Account?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'This will permanently delete your profile, saved routes, and trip history. This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isDeleting = true);
+      try {
+        await _auth.deleteAccount();
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Action failed: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isDeleting = false);
+      }
+    }
   }
 }

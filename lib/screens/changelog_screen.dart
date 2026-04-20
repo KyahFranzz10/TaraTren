@@ -5,10 +5,59 @@ class ChangelogScreen extends StatelessWidget {
 
   static const List<_ChangelogVersion> _versions = [
     _ChangelogVersion(
-      version: 'V0.2.2-Alpha',
-      date: 'April 10, 2026',
+      version: 'V0.3.0',
+      date: 'April 20, 2026',
       tag: 'LATEST',
       tagColor: Color(0xFF10B981),
+      entries: [
+        _ChangelogEntry(Icons.security_rounded, 'Database Security Hardening', 'Implemented Row Level Security (RLS) for favorites and profiles, ensuring 100% user data privacy.', _EntryType.feature),
+        _ChangelogEntry(Icons.verified_user_rounded, 'Modernized Dev Profile', 'Completely redesigned the About Developer screen with glassmorphism styling and official GitHub integration.', _EntryType.feature),
+        _ChangelogEntry(Icons.train_rounded, 'Rolling Stock Standard', 'Transitioned all fleet terminology to the professional "Rolling Stock" industry standard.', _EntryType.improvement),
+        _ChangelogEntry(Icons.account_circle_rounded, 'High-Res Social Avatars', 'Upgraded social login profile pictures to dynamic high-resolution versions for a premium UI feel.', _EntryType.improvement),
+        _ChangelogEntry(Icons.settings_suggest_rounded, 'Centralized Settings Hub', 'Unified all technical, theme, and security controls into a single streamlined Settings screen.', _EntryType.improvement),
+        _ChangelogEntry(Icons.contrast_rounded, 'Theme-Aware Journey Data', 'Added full Light/Dark mode support for all station travel intervals and route planning results.', _EntryType.improvement),
+        _ChangelogEntry(Icons.check_circle_rounded, 'Data Sanitization Fix', 'Resolved matching errors in favorite station logic via improved string trimming and sanitization.', _EntryType.fix),
+      ],
+    ),
+    _ChangelogVersion(
+      version: 'V0.2.6-Alpha',
+      date: 'April 13, 2026',
+      tag: 'PREVIOUS',
+      tagColor: Colors.grey,
+      entries: [
+        _ChangelogEntry(Icons.view_carousel_rounded, 'Visual Mirror Perspective', 'Dynamic Island carousel now automatically mirror-flips based on upcoming door sides for a 1:1 view.', _EntryType.feature),
+        _ChangelogEntry(Icons.shield_rounded, '7-Layer Precision Guard', 'Strengthened road-vehicle rejection with Stop-Pattern Analysis and 10-tick confidence barrier.', _EntryType.feature),
+        _ChangelogEntry(Icons.gps_fixed_rounded, 'High-Precision Boarding', 'Utilizes 50m geofence boxes for 100% accurate entry/exit journaling even with delayed tracking.', _EntryType.feature),
+        _ChangelogEntry(Icons.bug_report_rounded, 'Station Sequence Fix', 'Resolved logic errors where the Dynamic Island would skip the current station or jump ahead.', _EntryType.fix),
+      ],
+    ),
+    _ChangelogVersion(
+      version: 'V0.2.5-Alpha',
+      date: 'April 13, 2026',
+      tag: 'PREVIOUS',
+      tagColor: Colors.grey,
+      entries: [
+        _ChangelogEntry(Icons.payments_rounded, 'Official 2026 Fare Matrices', 'Integrated 100% accurate station-to-station fare matrices for LRT-1, LRT-2, and MRT-3 as per official tariff schedules.', _EntryType.feature),
+        _ChangelogEntry(Icons.calculate_rounded, 'Precision Discount Engine', 'Dedicated 50% discount matrices for Seniors, Students, and PWDs, including special rounding policies for Single Journey cards.', _EntryType.feature),
+        _ChangelogEntry(Icons.timer_10_rounded, 'Operational Timing Standards', 'Upgraded train tracking with exact station-to-station timing weights for high-precision ETA and map movements.', _EntryType.feature),
+        _ChangelogEntry(Icons.analytics_rounded, 'Tariff Alignment Fixes', 'Corrected specific rounding rules for MRT-3 and decimal-based promos for LRT-2 Stored Value cards.', _EntryType.fix),
+      ],
+    ),
+    _ChangelogVersion(
+      version: 'V0.2.3-Alpha',
+      date: 'April 10, 2026',
+      tag: 'PREVIOUS',
+      tagColor: Color(0xFF6B7280),
+      entries: [
+        _ChangelogEntry(Icons.layers_rounded, 'Multi-Leg Journey Grouping', 'The Digital Trip Journal now groups separate legs of a commute (e.g., MRT-3 to LRT-2) into a single session.', _EntryType.feature),
+        _ChangelogEntry(Icons.straighten_rounded, 'Heading Stabilization', 'Re-engineered the map heading engine to provide smooth, straight-line tracking along the rail tracks.', _EntryType.improvement),
+      ],
+    ),
+    _ChangelogVersion(
+      version: 'V0.2.2-Alpha',
+      date: 'April 10, 2026',
+      tag: 'PREVIOUS',
+      tagColor: Color(0xFF6B7280),
       entries: [
         _ChangelogEntry(Icons.campaign, 'Smart Advisory Alerts', 'News feed scraper now intelligently detects critical operational issues (e.g. Technical Issue, LRTAdvisory) and pushes proactive system alerts.', _EntryType.feature),
         _ChangelogEntry(Icons.picture_in_picture_alt, 'Unified Dynamic Island', 'Combined the in-app and system-wide Dynamic Islands into a single high-performance overlay for universal UI consistency.', _EntryType.feature),

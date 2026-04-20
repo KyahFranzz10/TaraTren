@@ -20,6 +20,7 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
   String? _bodyText;
   bool _isExpanded = false;
   bool _isArrivalAlert = false;
+  bool _isNowArriving = false;
   bool _wasAutoExpanded = false;
   bool _isClosed = false;
 
@@ -55,6 +56,7 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
           _statusLabel = event['statusLabel'];
           _distance = event['distance'];
           _pace = event['pace'];
+          _isNowArriving = event['isNowArriving'] ?? false;
 
           if (lineChanged && _line != null) {
             Color targetColor = _getLineColor(_line);
@@ -78,6 +80,14 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
           } else if (!needsExpansion && _wasAutoExpanded) {
             _isExpanded = false;
             _wasAutoExpanded = false;
+          }
+
+          // Dynamic Window Resizing: Fixes the "Invisible Block" issue
+          // Collapsed: ~104px (80+24 margin), Expanded: 530px height
+          if (_isExpanded) {
+            FlutterOverlayWindow.resizeOverlay(350, 530, true);
+          } else {
+            FlutterOverlayWindow.resizeOverlay(220, 104, true);
           }
         });
       }
@@ -104,225 +114,212 @@ class _SystemDynamicIslandState extends State<SystemDynamicIsland> with TickerPr
           final activeColor = _colorAnimation.value ?? _getLineColor(_line);
           
           if (_isClosed) {
-            return Column(
+            return const SizedBox.shrink();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.only(top: 24), // Push below the "header"/status bar
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 90),
                 GestureDetector(
-                  onTap: () => setState(() => _isClosed = false),
+                  onTap: () {
+                    setState(() => _isExpanded = !_isExpanded);
+                    if (_isExpanded) {
+                      FlutterOverlayWindow.resizeOverlay(350, 500, true);
+                    } else {
+                      FlutterOverlayWindow.resizeOverlay(220, 80, true);
+                    }
+                  },
                   onLongPress: () => FlutterOverlayWindow.closeOverlay(),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D0D0D),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 1),
-                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 8)],
-                    ),
-                    child: Center(
-                      child: Icon(Icons.directions_transit, color: activeColor, size: 22),
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.elasticOut,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.elasticOut,
+                      width: _isExpanded ? 350 : 200,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D0D0D),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: activeColor.withValues(alpha: 0.8),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: activeColor.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildIndicator(_line, activeColor),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!_isExpanded)
+                                    Builder(
+                                      builder: (context) {
+                                        String mini = _line?.toUpperCase() ?? "TRANSIT";
+                                        if (_statusLabel != null) {
+                                          String contextSt = _statusLabel!.contains("Next") ? (_nextStation ?? "") : (_currentStation ?? "");
+                                          mini = "${_statusLabel!} $contextSt";
+                                        }
+                                        return MarqueeText(
+                                          text: mini,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        );
+                                      }
+                                    )
+                                  else ...[
+                                    Row(
+                                      children: [
+                                        Text(
+                                          _line?.toUpperCase() ?? "TRANSIT",
+                                          style: TextStyle(
+                                            color: activeColor.withValues(alpha: 0.9),
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 300),
+                                          child: Text(
+                                            (_statusLabel?.contains(" • ") == true 
+                                               ? _statusLabel!.split(" • ").last 
+                                               : (_statusLabel ?? "TRACKING")).toUpperCase(),
+                                            key: ValueKey(_statusLabel),
+                                            style: TextStyle(
+                                              color: _isNowArriving ? Colors.orange : (_statusLabel != null && _statusLabel!.contains("NOW ARRIVING") ? Colors.orange : Colors.greenAccent),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        GestureDetector(
+                                          onTap: () {
+                                            setState(() => _isExpanded = false);
+                                            FlutterOverlayWindow.resizeOverlay(220, 80, true);
+                                          },
+                                          child: const Icon(Icons.keyboard_arrow_up, color: Colors.white54, size: 18),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => FlutterOverlayWindow.closeOverlay(),
+                                          child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(flex: 3, child: _stationLabel(_nextStation ?? "--", isMain: false)),
+                                        AnimatedTrainLine(pointingLeft: true, lineColor: activeColor),
+                                        Expanded(
+                                          flex: 3, 
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _stationLabel(_currentStation ?? "Tracking...", isMain: true),
+                                              if (direction != null)
+                                                Text(
+                                                  direction,
+                                                  style: TextStyle(
+                                                    color: activeColor.withValues(alpha: 0.8),
+                                                    fontSize: 7,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        AnimatedTrainLine(pointingLeft: true, lineColor: activeColor),
+                                        Expanded(flex: 3, child: _stationLabel(_prevStation ?? "--", isMain: false)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 300),
+                                      transitionBuilder: (child, animation) => FadeTransition(
+                                        opacity: animation, 
+                                        child: SlideTransition(
+                                          position: Tween<Offset>(begin: const Offset(0.0, 0.2), end: Offset.zero).animate(animation), 
+                                          child: child
+                                        )
+                                      ),
+                                      child: _bodyText != null
+                                        ? Container(
+                                            key: const ValueKey("bodyText"),
+                                            width: double.infinity,
+                                            alignment: Alignment.center,
+                                            padding: const EdgeInsets.only(top: 6),
+                                            child: Text(
+                                              _bodyText!,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.8),
+                                                fontSize: 11,
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            ),
+                                          )
+                                        : Row(
+                                            key: const ValueKey("metrics"),
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              _metricItem(Icons.speed, "${_speed ?? 0}", "km/h"),
+                                              _metricItem(Icons.social_distance, _distance == null ? "--" : "${(_distance! / 1000).toStringAsFixed(1)}", "km"),
+                                              _metricItem(Icons.timer_outlined, _pace ?? "LIVE", "ETA"),
+                                            ],
+                                          ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (!_isExpanded)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                PulseIndicator(isFast: _isNowArriving),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 18),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
-            );
-          }
-
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 90), // Restored to place it correctly below the app header
-              GestureDetector(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                onLongPress: () => FlutterOverlayWindow.closeOverlay(),
-                child: AnimatedSize(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.elasticOut,
-                  alignment: Alignment.topCenter,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.elasticOut,
-                    width: _isExpanded ? 350 : 200,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D0D0D),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: activeColor.withValues(alpha: 0.8),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: activeColor.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        )
-                      ],
-                    ),
-                    child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildIndicator(_line, activeColor),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!_isExpanded)
-                                Builder(
-                                  builder: (context) {
-                                    String mini = _line?.toUpperCase() ?? "TRANSIT";
-                                    if (_statusLabel != null) {
-                                      String contextSt = _statusLabel!.contains("Next") ? (_nextStation ?? "") : (_currentStation ?? "");
-                                      mini = "${_statusLabel!} $contextSt";
-                                    }
-                                    return MarqueeText(
-                                      text: mini,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    );
-                                  }
-                                )
-                          else ...[
-                            Row(
-                              children: [
-                                Text(
-                                  _line?.toUpperCase() ?? "TRANSIT",
-                                  style: TextStyle(
-                                    color: activeColor.withValues(alpha: 0.9),
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                                const Spacer(),
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Text(
-                                    (_statusLabel?.contains(" • ") == true 
-                                       ? _statusLabel!.split(" • ").last 
-                                       : (_statusLabel ?? "TRACKING")).toUpperCase(),
-                                    key: ValueKey(_statusLabel),
-                                    style: const TextStyle(
-                                      color: Colors.greenAccent,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                GestureDetector(
-                                  onTap: () => setState(() => _isExpanded = false),
-                                  child: const Icon(Icons.keyboard_arrow_up, color: Colors.white54, size: 18),
-                                ),
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: () => setState(() {
-                                    _isClosed = true;
-                                    _isExpanded = false;
-                                  }),
-                                  child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
-                                ),
-                              ],
-                            ),
-                             const SizedBox(height: 10),
-                             Row(
-                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                               children: [
-                                 Expanded(flex: 3, child: _stationLabel(_nextStation ?? "--", isMain: false)),
-                                 AnimatedTrainLine(pointingLeft: true, lineColor: activeColor),
-                                 Expanded(
-                                    flex: 3, 
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _stationLabel(_currentStation ?? "Tracking...", isMain: true),
-                                        if (direction != null)
-                                          Text(
-                                            direction,
-                                            style: TextStyle(
-                                              color: activeColor.withValues(alpha: 0.8),
-                                              fontSize: 7,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  AnimatedTrainLine(pointingLeft: true, lineColor: activeColor),
-                                  Expanded(flex: 3, child: _stationLabel(_prevStation ?? "--", isMain: false)),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                transitionBuilder: (child, animation) => FadeTransition(
-                                  opacity: animation, 
-                                  child: SlideTransition(
-                                    position: Tween<Offset>(begin: const Offset(0.0, 0.2), end: Offset.zero).animate(animation), 
-                                    child: child
-                                  )
-                                ),
-                                child: _bodyText != null
-                                  ? Container(
-                                      key: const ValueKey("bodyText"),
-                                      width: double.infinity,
-                                      alignment: Alignment.center,
-                                      padding: const EdgeInsets.only(top: 6),
-                                      child: Text(
-                                        _bodyText!,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.8),
-                                          fontSize: 11,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    )
-                                    : Row(
-                                      key: const ValueKey("metrics"),
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        _metricItem(Icons.speed, "${_speed ?? 0}", "km/h"),
-                                        _metricItem(Icons.social_distance, _distance == null ? "--" : "${(_distance! / 1000).toStringAsFixed(1)}", "km"),
-                                        _metricItem(Icons.timer_outlined, _pace ?? "LIVE", "STATUS"),
-                                      ],
-                                    ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (!_isExpanded)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const PulseIndicator(),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 18),
-                        ],
-                      )
-                  ],
-                ),
-              ),
             ),
-          ),
-          ],
-        );
-      },
-    ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 
   Widget _metricItem(IconData icon, String value, String unit) {
     return Column(
@@ -477,7 +474,8 @@ class _AnimatedTrainLineState extends State<AnimatedTrainLine> with SingleTicker
 }
 
 class PulseIndicator extends StatefulWidget {
-  const PulseIndicator({super.key});
+  final bool isFast;
+  const PulseIndicator({super.key, this.isFast = false});
 
   @override
   State<PulseIndicator> createState() => _PulseIndicatorState();
@@ -490,8 +488,22 @@ class _PulseIndicatorState extends State<PulseIndicator> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this, 
+      duration: Duration(milliseconds: widget.isFast ? 300 : 1000)
+    )..repeat(reverse: true);
     _animation = Tween<double>(begin: 0.4, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void didUpdateWidget(PulseIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFast != widget.isFast) {
+      _controller.duration = Duration(milliseconds: widget.isFast ? 300 : 1000);
+      if (_controller.isAnimating) {
+        _controller.repeat(reverse: true);
+      }
+    }
   }
 
   @override

@@ -1,42 +1,7 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
-class ScrapedAlert {
-  final int? id;
-  final String title;
-  final String message;
-  final DateTime timestamp;
-  final String line;
-
-  ScrapedAlert({
-    this.id,
-    required this.title,
-    required this.message,
-    required this.timestamp,
-    required this.line,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'title': title,
-      'message': message,
-      'timestamp': timestamp.toIso8601String(),
-      'line': line,
-    };
-  }
-
-  factory ScrapedAlert.fromMap(Map<String, dynamic> map) {
-    return ScrapedAlert(
-      id: map['id'],
-      title: map['title'],
-      message: map['message'],
-      timestamp: DateTime.parse(map['timestamp']),
-      line: map['line'],
-    );
-  }
-}
+import '../models/scraped_alert.dart';
 
 class OfflineStorageService {
   static final OfflineStorageService _instance = OfflineStorageService._internal();

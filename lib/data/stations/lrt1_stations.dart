@@ -27,7 +27,7 @@ final List<Map<String, dynamic>> lrt1Stations = [
   {
     'code': 'GL-02',
     'id': 'lrt1-fpj',
-    'name': 'Fernando Poe. Jr',
+    'name': 'Fernando Poe Jr.',
     'line': 'LRT1',
     'order': 1,
     'lat': 14.6575,
@@ -457,7 +457,8 @@ final List<Map<String, dynamic>> lrt1Stations = [
     'province': 'Metro Manila',
     'imageUrl': 'assets/image/Stations/LRT1/Dr_Santos_Station.jpg',
     'landmark': 'SM City Sucat',
-    'connectingRoutes': '• Bus Routes: PITX - Sucat\n• Jeep/e-Jeep Routes: Sucat - Baclaran, Sucat - Zapote, Sucat - Alabang',
+    'connectingRoutes':
+        '• Bus Routes: PITX - Sucat\n• Jeep/e-Jeep Routes: Sucat - Baclaran, Sucat - Zapote, Sucat - Alabang',
     'isTerminus': true,
   },
   // ── Cavite Extension (Under Construction) ──────────────────────────────────
@@ -474,7 +475,8 @@ final List<Map<String, dynamic>> lrt1Stations = [
     'isExtension': true,
     'imageUrl': '',
     'landmark': 'Planned station (Right-of-way issue)',
-    'connectingRoutes': '• Bus Routes: PITX - Cavite\n• Jeep/e-Jeep Routes: Las Piñas - Baclaran, Las Piñas - Alabang'
+    'connectingRoutes':
+        '• Bus Routes: PITX - Cavite\n• Jeep/e-Jeep Routes: Las Piñas - Baclaran, Las Piñas - Alabang'
   },
   {
     'code': 'GL-EXT02',
@@ -489,7 +491,8 @@ final List<Map<String, dynamic>> lrt1Stations = [
     'isExtension': true,
     'imageUrl': '',
     'landmark': 'Satellite Depot Area',
-    'connectingRoutes': '• Bus Routes: PITX - Cavite, Route 23, 27, 29, 31A, 31B, 32 (Longos)\n• Jeep/e-Jeep Routes: Zapote - Alabang, Zapote - Bacoor'
+    'connectingRoutes':
+        '• Bus Routes: PITX - Cavite, Route 23, 27, 29, 31A, 31B, 32 (Longos)\n• Jeep/e-Jeep Routes: Zapote - Alabang, Zapote - Bacoor'
   },
   {
     'code': 'GL-EXT03',
@@ -504,7 +507,8 @@ final List<Map<String, dynamic>> lrt1Stations = [
     'isExtension': true,
     'imageUrl': '',
     'landmark': 'Planned station (Right-of-way issue)',
-    'connectingRoutes': '• Bus Routes: PITX - Cavite\n• Jeep/e-Jeep Routes: Talaba Express, Bacoor Local'
+    'connectingRoutes':
+        '• Bus Routes: PITX - Cavite\n• Jeep/e-Jeep Routes: Talaba Express, Bacoor Local'
   },
   {
     'code': 'GL-EXT04',
@@ -535,6 +539,7 @@ final List<Map<String, dynamic>> lrt1Stations = [
     'isExtension': true,
     'imageUrl': '',
     'landmark': 'NOMO - A Vista Mall (Proposed/Requested)',
-    'connectingRoutes': '• Bus Routes: PITX - Dasmariñas\n• Jeep/e-Jeep Routes: NOMO Local'
+    'connectingRoutes':
+        '• Bus Routes: PITX - Dasmariñas\n• Jeep/e-Jeep Routes: NOMO Local'
   },
 ];

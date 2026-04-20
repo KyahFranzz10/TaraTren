@@ -91,9 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 12),
                 _buildTypeCard("Beep Card User", "Stored Value discount (up to 20% off) applied.", "beep", Icons.credit_card),
                 const SizedBox(height: 12),
-                _buildTypeCard("Senior Citizen", "50% promotional discount applied.", "senior", Icons.elderly),
-                const SizedBox(height: 12),
-                _buildTypeCard("Student", "50% promotional discount applied.", "student", Icons.school),
+                _buildTypeCard("White Beep Card", "50% Savings for Seniors, Students, and PWDs.", "white_beep", Icons.badge_outlined),
                 
                 const SizedBox(height: 48),
                 

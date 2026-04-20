@@ -113,14 +113,29 @@ class GtfsSimulationService {
     }
 
     final double speedFactor = peak ? 1.0 : 0.85; 
-    const double baseTravelTime = 2.4; 
-    final double travelTimeBetweenStations = baseTravelTime / speedFactor;
-    final double totalTravelTime = (stations.length - 1) * travelTimeBetweenStations;
+
+    // Precise 2026 Operational Standards: Station-to-station weights (minutes)
+    final List<double> lrt1Weights = [4.0, 4.0, 2.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.0, 2.0, 2.0, 2.5, 2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0];
+    final List<double> lrt2Weights = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 3.0, 2.0, 4.0, 2.5, 3.5];
+    final List<double> mrt3Weights = [3.5, 2.5, 3.5, 3.0, 3.0, 2.0, 2.0, 2.5, 3.0, 2.5, 3.0, 3.0];
+    
+    double totalTravelTime = 0;
+    if (lineName.contains('LRT-1')) {
+      totalTravelTime = lrt1Weights.fold(0, (sum, w) => sum + w);
+    } else if (lineName.contains('LRT-2')) {
+      totalTravelTime = lrt2Weights.fold(0, (sum, w) => sum + w);
+    } else if (lineName.contains('MRT-3')) {
+      totalTravelTime = mrt3Weights.fold(0, (sum, w) => sum + w);
+    } else {
+      const double baseTravelTime = 2.4; 
+      final double travelTimeBetweenStations = baseTravelTime / speedFactor;
+      totalTravelTime = (stations.length - 1) * travelTimeBetweenStations;
+    }
 
     // Dispatch window
     for (double dispatchTime = 270; dispatchTime < 1410; dispatchTime += headway) {
-      _addTrainIfInTransit(activeTrains, lineName, stations, dispatchTime, currentTime, totalTravelTime, travelTimeBetweenStations, true);
-      _addTrainIfInTransit(activeTrains, lineName, stations, dispatchTime, currentTime, totalTravelTime, travelTimeBetweenStations, false);
+      _addTrainIfInTransit(activeTrains, lineName, stations, dispatchTime, currentTime, totalTravelTime, true);
+      _addTrainIfInTransit(activeTrains, lineName, stations, dispatchTime, currentTime, totalTravelTime, false);
     }
   }
 
@@ -137,7 +152,6 @@ class GtfsSimulationService {
     double dispatchTime, 
     double currentTime, 
     double totalTravelTime,
-    double travelTimeBetweenStations,
     bool isSouthbound
   ) {
     double progressTime = currentTime - dispatchTime;
@@ -148,19 +162,39 @@ class GtfsSimulationService {
       final double jitter = (dispatchTime.hashCode % 40) / 60.0; 
       progressTime = (progressTime - jitter).clamp(0, totalTravelTime + turnAroundTime);
 
-      final stations = isSouthbound ? stationsData : stationsData.reversed.toList();
+      final List<Station> stations = isSouthbound ? stationsData : stationsData.reversed.toList();
       double lat, lng;
 
       if (progressTime <= totalTravelTime) {
-        // Normal transit relative to total travel time
-        double percent = progressTime / totalTravelTime;
-        int totalSegments = stations.length - 1;
-        double segmentIndexReal = percent * totalSegments;
-        int startIndex = segmentIndexReal.floor();
-        int endIndex = (startIndex + 1).clamp(0, stations.length - 1);
-        
-        double segmentPercent = segmentIndexReal - startIndex;
-        
+        // Find current segment using weights if available
+        int startIndex = 0;
+        int endIndex = 0;
+        double segmentPercent = 0;
+
+        if (lineName.contains('LRT-1')) {
+          final List<double> weights = [4.0, 4.0, 2.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.0, 2.0, 2.0, 2.5, 2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0];
+          final currentWeights = isSouthbound ? weights : weights.reversed.toList();
+          
+          double cumulative = 0;
+          for (int i = 0; i < currentWeights.length; i++) {
+            if (progressTime <= cumulative + currentWeights[i]) {
+              startIndex = i;
+              endIndex = i + 1;
+              segmentPercent = (progressTime - cumulative) / currentWeights[i];
+              break;
+            }
+            cumulative += currentWeights[i];
+          }
+        } else if (lineName.contains('LRT-2')) {
+          // Fallback to linear distribution
+          double percent = progressTime / totalTravelTime;
+          int totalSegments = stations.length - 1;
+          double segmentIndexReal = percent * totalSegments;
+          startIndex = segmentIndexReal.floor();
+          endIndex = (startIndex + 1).clamp(0, stations.length - 1);
+          segmentPercent = segmentIndexReal - startIndex;
+        }
+
         LatLng startPos = LatLng(stations[startIndex].lat, stations[startIndex].lng);
         LatLng endPos = LatLng(stations[endIndex].lat, stations[endIndex].lng);
         
@@ -246,8 +280,14 @@ class GtfsSimulationService {
     final double currentTime = now.hour * 60 + now.minute + now.second / 60.0;
     
     final bool peak = _isPeakHour(now);
-    final double headway = peak ? 5.5 : 12.0;
-    final double travelTimeBetweenStations = peak ? 2.8 : 2.1;
+    double headway = peak ? 3.8 : 6.0;
+    if (lineName.contains('LRT-2')) headway = peak ? 7.5 : 13.0;
+    if (lineName.contains('MRT-3')) headway = peak ? 3.5 : 4.5;
+
+    final List<double> lrt1Weights = [4.0, 4.0, 2.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.0, 2.0, 2.0, 2.5, 2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0];
+    final List<double> lrt2Weights = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 3.0, 2.0, 4.0, 2.5, 3.5];
+    final List<double> mrt3Weights = [3.5, 2.5, 3.5, 3.0, 3.0, 2.0, 2.0, 2.5, 3.0, 2.5, 3.0, 3.0];
+    double totalTravelTime = 0;
 
     TrainLine? targetLine;
     for (var line in trainLines) {
@@ -265,6 +305,17 @@ class GtfsSimulationService {
 
     // Filter out non-operational (extension) stations
     final List<Station> operationalStations = targetLine.stations.where((s) => !s.isExtension).toList();
+
+    if (lineName.contains('LRT-1')) {
+      totalTravelTime = lrt1Weights.fold(0, (sum, w) => sum + w);
+    } else if (lineName.contains('LRT-2')) {
+      totalTravelTime = lrt2Weights.fold(0, (sum, w) => sum + w);
+    } else if (lineName.contains('MRT-3')) {
+      totalTravelTime = mrt3Weights.fold(0, (sum, w) => sum + w);
+    } else {
+      final double travelTimeBetweenStations = peak ? 2.8 : 2.1;
+      totalTravelTime = (operationalStations.length - 1) * travelTimeBetweenStations;
+    }
     
     // Provisional Service Check (Filter Stations)
     List<Station>? activeStationsRange;
@@ -294,12 +345,9 @@ class GtfsSimulationService {
 
     if (localStationIdx == -1) return []; // Station is an extension or not in this line's operational list
 
-    final totalStations = activeStationsRange.length;
-    final double totalTravelTime = (totalStations - 1) * travelTimeBetweenStations;
-
     for (double dispatchTime = 270; dispatchTime < 1410; dispatchTime += headway) {
-      arrivals.addAll(_calculateArrival(targetLine.name, stationId, localStationIdx, dispatchTime, currentTime, totalTravelTime, travelTimeBetweenStations, true));
-      arrivals.addAll(_calculateArrival(targetLine.name, stationId, totalStations - 1 - localStationIdx, dispatchTime, currentTime, totalTravelTime, travelTimeBetweenStations, false));
+      arrivals.addAll(_calculateArrival(targetLine.name, stationId, localStationIdx, dispatchTime, currentTime, totalTravelTime, true));
+      arrivals.addAll(_calculateArrival(targetLine.name, stationId, activeStationsRange.length - 1 - localStationIdx, dispatchTime, currentTime, totalTravelTime, false));
     }
 
     arrivals.sort((a, b) => a.minutesUntil.compareTo(b.minutesUntil));
@@ -314,13 +362,34 @@ class GtfsSimulationService {
     double dispatchTime, 
     double currentTime, 
     double totalTravelTime,
-    double travelTimeBetweenStations,
     bool isSouthbound
   ) {
     double progressTime = currentTime - dispatchTime;
     
     if (progressTime >= 0 && progressTime <= totalTravelTime) {
-      double arrivalTimeAtStation = stationIndex * travelTimeBetweenStations;
+      double arrivalTimeAtStation = 0;
+      if (lineName.contains('LRT-1')) {
+        final List<double> weights = [4.0, 4.0, 2.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.0, 2.0, 2.0, 2.5, 2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0];
+        final currentWeights = isSouthbound ? weights : weights.reversed.toList();
+        for (int i = 0; i < stationIndex; i++) {
+          arrivalTimeAtStation += currentWeights[i];
+        }
+      } else if (lineName.contains('LRT-2')) {
+        final List<double> weights = [2.5, 2.5, 2.5, 2.5, 2.0, 2.0, 2.0, 3.0, 2.0, 4.0, 2.5, 3.5];
+        final currentWeights = isSouthbound ? weights : weights.reversed.toList();
+        for (int i = 0; i < stationIndex; i++) {
+          arrivalTimeAtStation += currentWeights[i];
+        }
+      } else if (lineName.contains('MRT-3')) {
+        final List<double> weights = [3.5, 2.5, 3.5, 3.0, 3.0, 2.0, 2.0, 2.5, 3.0, 2.5, 3.0, 3.0];
+        final currentWeights = isSouthbound ? weights : weights.reversed.toList();
+        for (int i = 0; i < stationIndex; i++) {
+          arrivalTimeAtStation += currentWeights[i];
+        }
+      } else {
+        double travelTimeBetweenStations = totalTravelTime / 20; // Generic fallback
+        arrivalTimeAtStation = stationIndex * travelTimeBetweenStations;
+      }
       double remainingTime = arrivalTimeAtStation - progressTime;
 
       if (remainingTime > 0) {
@@ -362,7 +431,6 @@ class GtfsSimulationService {
     final String line = station['line'];
 
     for (var report in reports) {
-      // Only same line and valid heading
       if (report.lineName != line || report.heading == null) continue;
 
       double dist = Geolocator.distanceBetween(
@@ -371,19 +439,43 @@ class GtfsSimulationService {
           station['lat'] as double,
           station['lng'] as double);
 
-      // Bearing check: Is this train moving towards this station?
       double bearing = _calculateBearing(report.position.latitude,
           report.position.longitude, station['lat'], station['lng']);
+      
       double angleDiff = (report.heading! - bearing).abs();
       if (angleDiff > 180) angleDiff = 360 - angleDiff;
 
-      // Within 8km and generally heading towards the station
-      if (angleDiff < 90 && dist < 8000 && dist > 100) {
-        // Est speed 35km/h including stops
+      bool isHeadingTowards = angleDiff < 90;
+      bool isNorth = report.direction?.toLowerCase().contains('north') ?? true;
+
+      // 1. ARRIVING: Near and heading towards or very close
+      if (dist < 500 && isHeadingTowards) {
+        arrivals.add(StationArrival(
+          stationId: stationId,
+          trainsetModel: "LIVE: ${report.trainsetId.split('-').last}",
+          minutesUntil: 0, // 0 signal for ARRIVING
+          isNorthbound: isNorth,
+          generation: "Real-time Tracker",
+          cooling: "Arriving Now",
+          isLive: true,
+        ));
+      } 
+      // 2. DEPARTING: Very close but moving away
+      else if (dist < 300 && !isHeadingTowards) {
+        arrivals.add(StationArrival(
+          stationId: stationId,
+          trainsetModel: "LIVE: ${report.trainsetId.split('-').last}",
+          minutesUntil: -1, // -1 signal for DEPARTING
+          isNorthbound: isNorth,
+          generation: "Real-time Tracker",
+          cooling: "Just Departed",
+          isLive: true,
+        ));
+      }
+      // 3. IN TRANSIT: Approaching from further away
+      else if (isHeadingTowards && dist < 8000) {
         int mins = (dist / (35 * 1000 / 60)).round();
         if (mins == 0) mins = 1;
-
-        bool isNorth = report.direction?.toLowerCase().contains('north') ?? true;
 
         arrivals.add(StationArrival(
           stationId: stationId,

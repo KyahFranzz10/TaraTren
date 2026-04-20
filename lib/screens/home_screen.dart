@@ -11,6 +11,7 @@ import '../services/offline_storage_service.dart';
 import '../delegates/station_search_delegate.dart';
 import '../widgets/cached_tile_provider.dart';
 import 'station_list_screen.dart';
+import '../models/scraped_alert.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,21 +55,32 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 8),
           // 1. GLOBAL SEARCH BAR
           GestureDetector(
             onTap: () => showSearch(context: context, delegate: StationSearchDelegate()),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(30),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))],
-                border: Border.all(color: Colors.grey.shade200),
+                color: Theme.of(context).cardColor, 
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.1), 
+                    blurRadius: 10, 
+                    offset: const Offset(0, 4)
+                  )
+                ],
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.search, color: Colors.blueGrey),
-                  SizedBox(width: 12),
-                  Text("Search Stations, Cities, or Landmarks...", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Icon(Icons.search, color: Theme.of(context).hintColor),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Search Stations, Cities, or Landmarks...", 
+                    style: TextStyle(color: Theme.of(context).hintColor, fontSize: 16)
+                  ),
                 ],
               ),
             ),
@@ -78,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // 2. Live Breaking News Ticker (Eagle Eye Alerts)
           _buildTransitTicker(),
           const SizedBox(height: 24),
+
 
           // 3. Dynamic Nearest Station Card
           if (_nearestStation != null) ...[
@@ -100,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                          height: 140, 
                          decoration: BoxDecoration(
                            color: lineColor, 
-                           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))]
+                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
                          ),
                          child: Stack(
                            children: [
@@ -137,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                            child: Container(
                                              decoration: BoxDecoration(
                                                shape: BoxShape.circle,
-                                               color: lineColor.withValues(alpha: 0.1),
+                                               color: lineColor.withOpacity(0.1),
                                              ),
                                              child: Center(
                                                child: Container(
@@ -147,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                    color: Colors.white,
                                                    shape: BoxShape.circle,
                                                    border: Border.all(color: lineColor, width: 2),
-                                                   boxShadow: [BoxShadow(color: lineColor.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 5)],
+                                                   boxShadow: [BoxShadow(color: lineColor.withOpacity(0.3), blurRadius: 10, spreadRadius: 5)],
                                                  ),
                                                ),
                                              ),
@@ -167,26 +180,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                      end: Alignment.centerRight,
                                      colors: [
                                        lineColor,
-                                       lineColor.withValues(alpha: 0.85),
-                                       lineColor.withValues(alpha: 0.5),
-                                       lineColor.withValues(alpha: 0.15),
+                                       lineColor.withOpacity(0.85),
+                                       lineColor.withOpacity(0.5),
+                                       lineColor.withOpacity(0.15),
                                        Colors.transparent,
                                      ],
                                      stops: const [0.0, 0.4, 0.6, 0.85, 1.0],
-                                   ),
-                                 ),
-                               ),
-                             ),
-                             // Subtle Noise for premium texture
-                             Positioned.fill(
-                               child: Opacity(
-                                 opacity: 0.03,
-                                 child: Container(
-                                   decoration: const BoxDecoration(
-                                     image: DecorationImage(
-                                       image: AssetImage('assets/image/Stations/noise_texture.png'),
-                                       repeat: ImageRepeat.repeat,
-                                     ),
                                    ),
                                  ),
                                ),
@@ -202,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                      decoration: BoxDecoration(
                                        color: Colors.white,
                                        borderRadius: BorderRadius.circular(16),
-                                       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 12)],
+                                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12)],
                                      ),
                                      child: Image.asset(currentLine.logoAsset, fit: BoxFit.contain),
                                    ),
@@ -233,13 +232,29 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
 
           // 4. Railway Categories
-          const Text('Manila Light Rail Transit System', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+          Text(
+            'Manila Light Rail Transit System', 
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w900, 
+              letterSpacing: 0.5,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54
+            )
+          ),
           const SizedBox(height: 12),
           _buildTrainLineCard(trainLines[0]), // LRT-1
           _buildTrainLineCard(trainLines[1]), // LRT-2
 
           const SizedBox(height: 28),
-          const Text('Manila Metro Rail Transit System', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+          Text(
+            'Manila Metro Rail Transit System', 
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w900, 
+              letterSpacing: 0.5,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54
+            )
+          ),
           const SizedBox(height: 12),
           _buildTrainLineCard(trainLines[2]), // MRT-3
           _buildSoonLineCard(
@@ -261,7 +276,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           const SizedBox(height: 28),
-          const Text('Philippine National Railways', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
+          Text(
+            'Philippine National Railways', 
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w900, 
+              letterSpacing: 0.5,
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : Colors.black54
+            )
+          ),
           const SizedBox(height: 12),
           _buildSoonLineCard(
             name: 'North-South Commuter Railway', 
@@ -295,23 +318,23 @@ class _HomeScreenState extends State<HomeScreen> {
           return FutureBuilder<List<ScrapedAlert>>(
             future: OfflineStorageService().getLatestAlerts(),
             builder: (context, offlineSnapshot) {
-              final rawAlerts = (offlineSnapshot.data ?? []).where((a) {
-                final age = now.difference(a.timestamp);
-                if (a.title.contains("Agila") && age.inMinutes > 15) return false;
-                final isIssue = a.message.contains("Provisional") || a.message.contains("Suspension") || a.message.contains("Issue");
-                return isIssue && age.inHours < 1;
-              }).toList();
-              
-              if (rawAlerts.isEmpty) return const SizedBox.shrink();
-              
-              return _tickerLayout(
-                icon: Icons.cloud_off,
-                label: "CACHED",
-                color: Colors.grey,
-                children: rawAlerts.map((a) {
+                final rawAlerts = (offlineSnapshot.data ?? []).where((a) {
                   final age = now.difference(a.timestamp);
-                  final timeLabel = age.inMinutes < 60 ? "${age.inMinutes}m ago" : "${age.inHours}h ago";
-                  return _tickerItem(a.title, a.message, timeLabel: timeLabel);
+                  if (a.title.contains("Agila") && age.inMinutes > 15) return false;
+                  final isIssue = a.message.contains("Provisional") || a.message.contains("Suspension") || a.message.contains("Issue");
+                  return isIssue && age.inHours < 1;
+                }).toList();
+                
+                if (rawAlerts.isEmpty) return const SizedBox.shrink();
+                
+                return _tickerLayout(
+                  icon: Icons.cloud_off,
+                  label: "CACHED",
+                  color: Colors.grey,
+                  children: rawAlerts.map((a) {
+                    final age = now.difference(a.timestamp);
+                    final timeLabel = age.inMinutes < 60 ? "${age.inMinutes}m ago" : "${age.inHours}h ago";
+                    return _tickerItem(a.title, a.message, timeLabel: timeLabel);
                 }).toList(),
               );
             },
@@ -331,12 +354,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _tickerLayout({required IconData icon, required String label, required Color color, required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.2))),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withOpacity(0.4), borderRadius: BorderRadius.circular(12)),
             child: Row(children: [
               Icon(icon, color: Colors.white, size: 14),
               const SizedBox(width: 6),
@@ -406,12 +429,12 @@ class _HomeScreenState extends State<HomeScreen> {
         height: 100,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: lineColor.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: lineColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
           image: DecorationImage(
             image: AssetImage(bgImage),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
-              isMRT3 ? Colors.black.withValues(alpha: 0.25) : lineColor.withValues(alpha: 0.3), 
+              isMRT3 ? Colors.black.withOpacity(0.25) : lineColor.withOpacity(0.3), 
               BlendMode.srcOver
             ),
           ),
@@ -424,8 +447,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  isMRT3 ? lineColor.withValues(alpha: 0.95) : lineColor.withValues(alpha: 0.9),
-                  isMRT3 ? lineColor.withValues(alpha: 0.7) : Colors.transparent,
+                  isMRT3 ? lineColor.withOpacity(0.95) : lineColor.withOpacity(0.9),
+                  isMRT3 ? lineColor.withOpacity(0.7) : Colors.transparent,
                 ],
               ),
             ),
@@ -437,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white, 
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: isMRT3 ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)] : null,
+                    boxShadow: isMRT3 ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8)] : null,
                   ),
                   child: Image.asset(line.logoAsset, fit: BoxFit.contain),
                 ),
@@ -485,12 +508,12 @@ class _HomeScreenState extends State<HomeScreen> {
         height: 100,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-          color: color.withValues(alpha: 0.15),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+          color: color.withOpacity(0.15),
           image: bgImage != null ? DecorationImage(
             image: AssetImage(bgImage),
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(color.withValues(alpha: 0.3), BlendMode.srcOver),
+            colorFilter: ColorFilter.mode(color.withOpacity(0.3), BlendMode.srcOver),
           ) : null,
         ),
         child: ClipRRect(
@@ -500,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [color.withValues(alpha: 0.9), color.withValues(alpha: 0.4)],
+                colors: [color.withOpacity(0.9), color.withOpacity(0.4)],
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -526,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
                   child: Text(year, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: textColor))
                 ),
               ],

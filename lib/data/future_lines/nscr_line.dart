@@ -17,7 +17,7 @@ final FutureLine nscrLine = FutureLine(
   stations: [
     // ── North Segment: Tarlac/Pampanga ──────────────────────────────────────
     FutureStation(code: 'NSCR-01', name: 'New Clark City',      position: const LatLng(15.352521, 120.527444), city: 'Capas, Tarlac'),
-    FutureStation(code: 'NSCR-02', name: 'Clark Intl. Airport', position: const LatLng(15.198827, 120.556626), city: 'Clark, Pampanga'),
+    FutureStation(code: 'NSCR-02', name: 'Clark International Airport', position: const LatLng(15.198827, 120.556626), city: 'Clark, Pampanga'),
     FutureStation(code: 'NSCR-03', name: 'Angeles',             position: const LatLng(15.134107, 120.600593), city: 'Angeles City'),
     FutureStation(code: 'NSCR-04', name: 'San Fernando',        position: const LatLng(15.026805, 120.68681),  city: 'San Fernando, Pampanga'),
     // ── Bulacan Segment ─────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import '../services/gtfs_simulation_service.dart';
 import '../services/live_train_service.dart';
 import '../data/transfer_paths.dart';
 import 'walking_path_screen.dart';
+import 'login_screen.dart';
 
 class StationDetailScreen extends StatefulWidget {
   final Station station;
@@ -29,6 +30,8 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   Station? _selectedDest;
   late TrainLine _stationLine;
   int _selectedDirectionIndex = 0; // 0: North/West, 1: South/East
+  final ScrollController _scrollController = ScrollController();
+  bool _isCollapsed = false;
 
   @override
   void initState() {
@@ -36,7 +39,6 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
       (l) {
         final String searchLine = widget.station.line.toUpperCase();
         final String lName = l.name.toUpperCase();
-        // Exact match or contains or normalized (no hyphens) match
         return lName == searchLine || 
                lName.replaceAll('-', '') == searchLine.replaceAll('-', '') ||
                (searchLine == 'MMS' && lName.contains('SUBWAY'));
@@ -51,28 +53,89 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
       ),
     );
     super.initState();
+    _scrollController.addListener(_scrollListener);
     _checkFavoriteStatus();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.hasClients) {
+      final bool collapsed = _scrollController.offset > (250 - kToolbarHeight - MediaQuery.of(context).padding.top);
+      if (collapsed != _isCollapsed) {
+        setState(() {
+          _isCollapsed = collapsed;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     _statusSubscription?.cancel();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
     super.dispose();
   }
 
   void _checkFavoriteStatus() {
-    _statusSubscription = _auth.getFavorites().listen((snapshot) {
+    _statusSubscription = _auth.getFavorites().listen((favorites) {
       if (mounted) {
-        final docs = snapshot.docs.map((d) => d.id).toList();
+        final favoriteNames = favorites.map((f) => f['station_name'] as String).toList();
         setState(() {
-          _isFavorite = docs.contains(widget.station.name);
+          _isFavorite = favoriteNames.contains(widget.station.name);
         });
       }
     });
   }
 
   Future<void> _toggleFavorite() async {
+    if (_auth.isGuest) {
+      _showAccountRequiredDialog("Favorites", "Save your most used stations for quick access and real-time arrival shortcuts.");
+      return;
+    }
     await _auth.toggleFavorite(widget.station.name);
+  }
+
+  void _showAccountRequiredDialog(String feature, String description) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.lock_outline, color: Colors.orange),
+            const SizedBox(width: 10),
+            Text('$feature Locked'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Sign in to unlock your $feature.', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Text(description, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maybe Later', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange, 
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+            },
+            child: const Text('Sign In Now'),
+          ),
+        ],
+      )
+    );
   }
 
   @override
@@ -82,19 +145,21 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     final Color lineColor = _getLineColor(station.line);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverAppBar(
             expandedHeight: 250,
             pinned: true,
             stretch: true,
             backgroundColor: lineColor,
-            leading: const BackButton(),
+            leading: BackButton(color: (isMRT3 && _isCollapsed) ? Colors.black : Colors.white),
             actions: [
               IconButton(
                 icon: Icon(
                   _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: _isFavorite ? Colors.red : (isMRT3 ? Colors.black : Colors.white),
+                  color: _isFavorite ? Colors.red : ((isMRT3 && _isCollapsed) ? Colors.black : Colors.white),
                 ),
                 onPressed: _toggleFavorite,
               ),
@@ -102,50 +167,79 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             flexibleSpace: FlexibleSpaceBar(
               centerTitle: false,
               titlePadding: const EdgeInsets.only(left: 56, bottom: 16, right: 20),
-              title: LayoutBuilder(
-                builder: (context, constraints) {
-                  final double top = constraints.biggest.height;
-                  final bool isCollapsed = top <= (MediaQuery.of(context).padding.top + kToolbarHeight + 10);
-                  // For MRT-3, text is white on image (expanded), black on yellow bar (collapsed)
-                  final Color titleColor = (isMRT3 && isCollapsed) ? Colors.black : Colors.white;
-                  final Color subtextColor = (isMRT3 && isCollapsed) ? Colors.black54 : Colors.white70;
+              title: StreamBuilder<Map<String, dynamic>?>(
+                stream: _auth.getProfileStream(),
+                builder: (context, snapshot) {
+                  final profileData = snapshot.data ?? {};
+                  final isPrimaryHome = profileData['fav_station'] == station.name;
 
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        station.name,
-                        style: TextStyle(
-                          color: titleColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          shadows: (titleColor == Colors.white) 
-                              ? [const Shadow(color: Colors.black54, blurRadius: 10)] 
-                              : [],
-                        ),
-                        textAlign: TextAlign.left,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${_stationLine.name} Station'.toUpperCase(),
-                        style: TextStyle(
-                          color: subtextColor,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                    ],
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double top = constraints.biggest.height;
+                      final bool isCollapsed = top <= (MediaQuery.of(context).padding.top + kToolbarHeight + 10);
+                      final Color titleColor = (isMRT3 && isCollapsed) ? Colors.black : Colors.white;
+                      final Color subtextColor = (isMRT3 && isCollapsed) ? Colors.black54 : Colors.white70;
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  station.name,
+                                  style: TextStyle(
+                                    color: titleColor,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    shadows: (titleColor == Colors.white) 
+                                        ? [const Shadow(color: Colors.black54, blurRadius: 10)] 
+                                        : [],
+                                  ),
+                                  textAlign: TextAlign.left,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isPrimaryHome)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.home, color: Colors.white, size: 10),
+                                      SizedBox(width: 2),
+                                      Text('HOME', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          Text(
+                            '${_stationLine.name} Station'.toUpperCase(),
+                            style: TextStyle(
+                              color: subtextColor,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2.0,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Station Image (Primary Focal Point)
                   station.imageUrl.startsWith('assets')
                       ? Image.asset(
                           station.imageUrl,
@@ -157,7 +251,6 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (c, e, s) => Container(color: lineColor.withValues(alpha: 0.5)),
                         ),
-                  // Dark Gradient for legibility
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -182,7 +275,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     children: [
                       const SizedBox(height: 24),
                       _buildTopInfo(station),
-                      const Divider(height: 48),
+                      Divider(height: 48, color: Theme.of(context).dividerColor.withOpacity(0.1)),
                       
                       if (!station.isExtension) ...[
                         _buildFareMatrix(),
@@ -208,6 +301,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildTopInfo(Station station) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,10 +324,10 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                   children: [
                     Text(
                       station.stationCode,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: Colors.black,
+                        color: isDark ? Colors.white : Colors.black,
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -266,20 +360,20 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.orange.shade50,
+              color: Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade200),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.construction_rounded, color: Colors.orange, size: 24),
-                SizedBox(width: 12),
+                const Icon(Icons.construction_rounded, color: Colors.orange, size: 24),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Under Construction", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 14)),
-                      Text("This station is not yet operational and is part of a future transit extension.", style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      const Text("Under Construction", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 14)),
+                      Text("This station is not yet operational and is part of a future transit extension.", style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
                     ],
                   ),
                 ),
@@ -289,7 +383,6 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           const SizedBox(height: 24),
         ],
 
-        // Landmarks section
         _buildInfoModule(
           title: "Nearby Landmarks",
           content: station.landmark,
@@ -297,10 +390,8 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           color: Colors.blueGrey,
         ),
 
-        // Walking path if transfer
         if (station.isTransfer) _buildWalkingGuideButton(station),
 
-        // Connecting Routes section
         if (station.connectingRoutes != '-' && station.connectingRoutes.isNotEmpty)
           _buildConnectingRoutesModule(station.connectingRoutes),
       ],
@@ -308,6 +399,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildWalkingGuideButton(Station station) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     try {
       final relevantPath = transferPaths.firstWhere(
         (p) => p.fromStationId == station.id || p.toStationId == station.id,
@@ -317,7 +409,6 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         margin: const EdgeInsets.only(top: 24),
         child: InkWell(
           onTap: () {
-            // Find the destination station object for naming
             String toStId = relevantPath.fromStationId == station.id ? relevantPath.toStationId : relevantPath.fromStationId;
             String toStName = "Connected Line";
             for (var line in trainLines) {
@@ -342,31 +433,31 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.indigo.shade50,
+              color: Colors.indigo.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.indigo.shade200),
+              border: Border.all(color: Colors.indigo.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.transfer_within_a_station_rounded, color: Colors.indigo),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Walking Transfer Guide", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text("View step-by-step path to the connected station.", style: TextStyle(fontSize: 12, color: Colors.indigo)),
+                      Text("Walking Transfer Guide", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black)),
+                      const Text("View step-by-step path to the connected station.", style: TextStyle(fontSize: 12, color: Colors.indigo)),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: Colors.indigo.shade300),
+                Icon(Icons.chevron_right_rounded, color: Colors.indigo.withValues(alpha: 0.5)),
               ],
             ),
           ),
         ),
       );
     } catch (e) {
-      return const SizedBox.shrink(); // No path defined for this transfer
+      return const SizedBox.shrink();
     }
   }
 
@@ -376,18 +467,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     }
 
     final List<InlineSpan> spans = [];
-    // Case-insensitive regex to find " via "
     final RegExp viaRegex = RegExp(r'\s+(via)\s+', caseSensitive: false);
     final Iterable<RegExpMatch> matches = viaRegex.allMatches(text);
 
     int lastIndex = 0;
     for (final match in matches) {
-      // Add the text before " via "
       if (match.start > lastIndex) {
         spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
       }
-
-      // Add " via " in italics and normal weight
       spans.add(TextSpan(
         text: text.substring(match.start, match.end),
         style: const TextStyle(
@@ -395,19 +482,17 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           fontWeight: FontWeight.normal,
         ),
       ));
-
       lastIndex = match.end;
     }
 
-    // Add remaining text
     if (lastIndex < text.length) {
       spans.add(TextSpan(text: text.substring(lastIndex)));
     }
-
     return spans;
   }
 
   Widget _buildInfoModule({required String title, required String content, required IconData icon, required Color color}) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -424,7 +509,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             Expanded(
               child: Text(
                 content,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF2D3142), height: 1.4),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : const Color(0xFF2D3142), height: 1.4),
               ),
             ),
           ],
@@ -434,14 +519,15 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildConnectingRoutesModule(String routes) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(top: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Theme(
@@ -457,7 +543,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.1)),
             const SizedBox(height: 16),
             _parseAndBuildRoutes(routes),
           ],
@@ -498,7 +584,8 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         }
 
         bool isQCBus = cleanLine.toUpperCase().contains("QCITY BUS") || cleanLine.toUpperCase().contains("QUEZON CITY BUS");
-        
+        final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
@@ -506,16 +593,16 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             children: [
               Container(
                 margin: const EdgeInsets.only(top: 2),
-                padding: const EdgeInsets.all(4), // Slightly tighter padding for the image "icon"
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: isQCBus ? Colors.blue.shade100 : _getLineColor(widget.station.line).withValues(alpha: 0.1),
+                  color: isQCBus ? Colors.blue.withValues(alpha: 0.1) : _getLineColor(widget.station.line).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: isQCBus 
                   ? ClipOval(
                       child: Image.asset(
                         'assets/image/QuezonCityBusService.png', 
-                        width: 20, // Smaller size to fit icon scale
+                        width: 20,
                         height: 20, 
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Icon(Icons.directions_bus_filled, size: 16, color: Colors.blue.shade700),
@@ -546,12 +633,10 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                             String item = d.trim();
                             String display = item;
                             
-                            // Check if this is a bus/QCity route to enhance the display
                             final bool isBus = title.toUpperCase().contains("BUS");
                             final bool isQC = title.toUpperCase().contains("QCITY");
 
                             if (isBus || isQC) {
-                              // Extract ID (handling things like "Route 1" or "42 (Info)")
                               String idOnly = item.replaceAll(RegExp(r'Route\s+'), '');
                               String extraInfo = "";
                               String rawInfo = "";
@@ -567,16 +652,11 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                                   (r) => r.routeId == lookupId,
                                   orElse: () => busRoutes.firstWhere((r) => r.routeId == idOnly)
                                 );
-                                
-                                // Only show extraInfo if it's NOT already in the route name
                                 if (rawInfo.isNotEmpty && !routeObj.name.toUpperCase().contains(rawInfo.toUpperCase())) {
                                   extraInfo = " ($rawInfo)";
                                 }
-                                
                                 display = "$idOnly | ${routeObj.name}$extraInfo";
-                              } catch (_) {
-                                // Keep original if not found in registry
-                              }
+                              } catch (_) {}
                             }
 
                             return Padding(
@@ -594,12 +674,12 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                                   Expanded(
                                     child: RichText(
                                       text: TextSpan(
-                                        style: const TextStyle(
-                                          color: Color(0xFF1F2937),
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white : const Color(0xFF1F2937),
                                           fontSize: 13,
                                           height: 1.2,
                                           fontWeight: FontWeight.w600,
-                                          fontFamily: 'Inter', // Ensuring consistent font
+                                          fontFamily: 'Inter',
                                         ),
                                         children: _buildRouteTextSpans(display),
                                       ),
@@ -622,6 +702,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildPeakHourInsights() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -632,7 +713,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
               children: [
                 Icon(Icons.query_stats_rounded, color: _getIconColor(widget.station.line), size: 28),
                 const SizedBox(width: 12),
-                const Text("Crowd Insights", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black, letterSpacing: -0.5)),
+                Text("Crowd Insights", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black, letterSpacing: -0.5)),
               ],
             ),
             StreamBuilder<double>(
@@ -657,7 +738,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     duration: const Duration(milliseconds: 1000),
                     curve: Curves.easeInOutSine,
                     builder: (context, scale, child) {
-                      final bool isOffline = snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData;
+                      final bool isOffline = snapshot.data == -1.0 || (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData);
                       
                       return Transform.scale(
                         scale: scale,
@@ -700,10 +781,13 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [const Color(0xFF0D1B3E).withValues(alpha: 0.02), const Color(0xFF0D1B3E).withValues(alpha: 0.08)],
+              colors: [
+                (isDark ? Colors.white : const Color(0xFF0D1B3E)).withValues(alpha: 0.02), 
+                (isDark ? Colors.white : const Color(0xFF0D1B3E)).withValues(alpha: 0.08)
+              ],
             ),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF0D1B3E).withValues(alpha: 0.1)),
+            border: Border.all(color: (isDark ? Colors.white : const Color(0xFF0D1B3E)).withValues(alpha: 0.1)),
           ),
           child: Column(
             children: [
@@ -729,7 +813,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Divider(height: 32),
+              Divider(height: 32, color: Theme.of(context).dividerColor.withOpacity(0.1)),
               
               Row(
                 children: [
@@ -739,12 +823,12 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     child: const Icon(Icons.tips_and_updates, color: Colors.green, size: 20),
                   ),
                   const SizedBox(width: 16),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Optimized Travel Window", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
-                        Text("Board between 11 AM - 3 PM for 40% less crowding.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text("Optimized Travel Window", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white70 : Colors.black87)),
+                        const Text("Board between 11 AM - 3 PM for 40% less crowding.", style: TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -758,7 +842,8 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _bar(double height, String label, {bool isPeak = false, bool isBest = false}) {
-    Color barColor = const Color(0xFF0D1B3E).withValues(alpha: 0.2);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    Color barColor = (isDark ? Colors.white : const Color(0xFF0D1B3E)).withValues(alpha: 0.2);
     if (isPeak) barColor = Colors.redAccent.withValues(alpha: 0.7);
     if (isBest) barColor = Colors.greenAccent.shade700.withValues(alpha: 0.7);
 
@@ -781,15 +866,19 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildFareMatrix() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final userType = _settings.userType;
     final fare = _selectedDest != null ? FareService().getFareResult(widget.station, _selectedDest!, userType: userType) : {'sj': 0.0};
     final bool isDiscounted = fare['isDiscounted'] == 1;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,7 +887,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             children: [
               Icon(Icons.payments_rounded, color: _getIconColor(widget.station.line), size: 20),
               const SizedBox(width: 10),
-              const Text("Fare Information", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+              Text("Fare Information", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
             ],
           ),
           const SizedBox(height: 16),
@@ -807,18 +896,19 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<Station>(
                 isExpanded: true,
                 value: _selectedDest,
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                 hint: const Text("Select Destination"),
                 items: _stationLine.stations
                     .where((s) => s.id != widget.station.id && !s.isExtension)
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: const TextStyle(fontSize: 14))))
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s.name, style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87))))
                     .toList(),
                 onChanged: (val) => setState(() => _selectedDest = val),
               ),
@@ -829,9 +919,9 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDiscounted ? Colors.blue.shade50 : Colors.green.shade50,
+                color: isDiscounted ? Colors.blue.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDiscounted ? Colors.blue.shade100 : Colors.green.shade100),
+                border: Border.all(color: isDiscounted ? Colors.blue.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -841,14 +931,14 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     children: [
                       Text(
                         isDiscounted ? "${userType.toUpperCase()} FARE" : "SINGLE JOURNEY FARE",
-                        style: TextStyle(color: isDiscounted ? Colors.blue.shade700 : Colors.green.shade700, fontWeight: FontWeight.bold, fontSize: 10),
+                        style: TextStyle(color: isDiscounted ? Colors.blue.shade300 : Colors.green.shade400, fontWeight: FontWeight.bold, fontSize: 10),
                       ),
                       const Text("Estimated Cost", style: TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                   Text(
                     "PHP ${fare['sj']}",
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black),
                   ),
                 ],
               ),
@@ -860,10 +950,11 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildChip(String label) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(20)), child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)));
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.indigo.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)), child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.indigo)));
   }
 
   Widget _buildAccessibilityIcon(IconData icon, bool isAvailable, String label) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Stack(
@@ -879,7 +970,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
               child: Icon(
                 icon,
                 size: 20,
-                color: isAvailable ? _getIconColor(widget.station.line) : Colors.grey.shade400,
+                color: isAvailable ? _getIconColor(widget.station.line) : Colors.grey.withValues(alpha: 0.4),
               ),
             ),
             if (!isAvailable)
@@ -893,10 +984,10 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: isDark ? Colors.white60 : Colors.black,
           ),
         ),
       ],
@@ -904,6 +995,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildUpcomingArrivals(Station station) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final isLRT2 = station.line.contains('LRT2');
     String northLabel = isLRT2 ? "Westbound" : "Northbound";
     String southLabel = isLRT2 ? "Eastbound" : "Southbound";
@@ -911,16 +1003,11 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
     return StreamBuilder<List<LiveTrainReport>>(
       stream: LiveTrainService().getLiveTrains(),
       builder: (context, snapshot) {
-        // 1. Get Scheduled Arrivals
         final List<StationArrival> scheduled =
             GtfsSimulationService.getArrivalsForStation(station.id);
-
-        // 2. Get Live Crowdsourced Arrivals
         final List<StationArrival> live =
             GtfsSimulationService.calculateLiveArrivals(
                 station.id, snapshot.data ?? []);
-
-        // 3. Merge: Prioritize Live over Scheduled if ETAs are close
         final List<StationArrival> combined = [...live];
         for (var sch in scheduled) {
           bool isRedundant = live.any((l) =>
@@ -930,9 +1017,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             combined.add(sch);
           }
         }
-
         combined.sort((a, b) => a.minutesUntil.compareTo(b.minutesUntil));
-
         final northbound = combined.where((a) => a.isNorthbound).toList();
         final southbound = combined.where((a) => !a.isNorthbound).toList();
 
@@ -947,11 +1032,11 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                     Icon(Icons.schedule_rounded,
                         color: _getIconColor(station.line), size: 24),
                     const SizedBox(width: 12),
-                    const Text("Upcoming Arrivals",
+                    Text("Upcoming Arrivals",
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black)),
+                            color: isDark ? Colors.white : Colors.black)),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => _showTrackerInfo(context),
@@ -968,19 +1053,18 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200)),
+                    border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1))),
                 child: const Center(
                     child: Text("No upcoming trains scheduled at this time.",
                         style: TextStyle(color: Colors.grey, fontSize: 13))),
               )
             else ...[
-              // Toggle Segmented Control
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -1006,6 +1090,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   Widget _buildToggleItem(int index, String label, Station station) {
     bool isSelected = _selectedDirectionIndex == index;
     Color activeColor = _getIconColor(station.line);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Expanded(
       child: GestureDetector(
@@ -1014,7 +1099,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? (isDark ? const Color(0xFF334155) : Colors.white) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             boxShadow: isSelected 
                 ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]
@@ -1026,7 +1111,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? activeColor : Colors.grey,
+                color: isSelected ? (isDark && station.line == 'MRT3' ? Colors.amber : activeColor) : Colors.grey,
               ),
             ),
           ),
@@ -1037,6 +1122,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
 
   Widget _buildDirectionSection(String label, List<StationArrival> arrivals, Station station) {
     final Color lineColor = _getLineColor(station.line);
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1067,10 +1153,10 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.03), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: Row(
               children: [
@@ -1090,7 +1176,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(a.trainsetModel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, overflow: TextOverflow.ellipsis)),
+                      Text(a.trainsetModel, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white : Colors.black, overflow: TextOverflow.ellipsis)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -1109,14 +1195,45 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text("${a.minutesUntil}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black)),
-                    const Text("MINS", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    if (a.minutesUntil == 0)
+                      _pulsingArrivingBadge()
+                    else if (a.minutesUntil == -1)
+                      const Text("DEPARTED", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.grey))
+                    else ...[
+                      Text("${a.minutesUntil}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black)),
+                      const Text("MINS", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    ],
                   ],
                 ),
               ],
             ),
           )),
       ],
+    );
+  }
+
+  Widget _pulsingArrivingBadge() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.6, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      builder: (context, opacity, child) {
+        return Opacity(
+          opacity: opacity,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+            ),
+            child: const Text(
+              "ARRIVING",
+              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
+            ),
+          ),
+        );
+      },
+      onEnd: () {}, // Keeps the loop going if handled by a parent or just plays once per build
     );
   }
 
@@ -1129,26 +1246,28 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   void _showTrackerInfo(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Why is this simulated?"),
-        content: const Column(
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text("Why is this simulated?", style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               "Currently, Metro Manila's train operators (LRT and MRT) do not provide a public real-time API for train locations.",
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               "Because of this, we use the official timetables to 'simulate' where trains should be, ensuring you always have a schedule even in areas with no data.",
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               "When real commuters are on board, you will see 'Live' markers which represent the actual real-time position of the train.",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.greenAccent : Colors.green),
             ),
           ],
         ),
@@ -1158,6 +1277,7 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _buildSocialPulse(Station station) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1165,31 +1285,55 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
           children: [
             Icon(Icons.people_alt_rounded, color: _getIconColor(station.line), size: 24),
             const SizedBox(width: 12),
-            const Text("Social Pulse", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+            Text("Social Pulse", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
           ],
         ),
         const SizedBox(height: 12),
-        StreamBuilder<String>(
+        StreamBuilder<SocialPulseInfo>(
           stream: _crowdService.getSocialStatusStream(station.id),
           builder: (context, snapshot) {
-            final status = snapshot.data ?? 'No recent reports';
+            final SocialPulseInfo? info = snapshot.data;
+            final status = info?.status ?? 'Processing...';
             final Color color = _getStatusColor(status);
+            final bool isActualLive = info?.isLive ?? false;
+            
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.05),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: color.withValues(alpha: 0.2)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.forum_outlined, color: color, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      "Community says current crowd is: ${status.toUpperCase()}",
-                      style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13),
-                    ),
+                  Row(
+                    children: [
+                      Icon(isActualLive ? Icons.verified_user_rounded : Icons.psychology_rounded, color: color, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Community says current crowd is: ${status.toUpperCase()}",
+                          style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 13),
+                        ),
+                      ),
+                      if (isActualLive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text("LIVE", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isActualLive 
+                      ? "Based on ${info?.reportCount} verified reports in the last 15 mins."
+                      : "No recent reports. Displaying typical station trends.",
+                    style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7), fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -1212,26 +1356,43 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Widget _statusButton(String stationId, String status, IconData icon, Color color) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () async {
-        final success = await _crowdService.reportSocialStatus(stationId, status);
-        if (mounted) {
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Reported as $status. Thank you for helping commuters!"),
-              backgroundColor: color.withValues(alpha: 0.9),
-            ));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text("Failed to report status. Please check your connection."),
-              backgroundColor: Colors.redAccent,
-            ));
-          }
+        final result = await _crowdService.reportSocialStatus(stationId, status);
+        if (!context.mounted) return;
+        
+        if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Pulse updated: ${status.toUpperCase()}!"),
+            backgroundColor: color.withValues(alpha: 0.9),
+            duration: const Duration(seconds: 1),
+          ));
+        } else if (result == "offline_saved") {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Pulse saved locally. Syncing when signal improves..."),
+            backgroundColor: Colors.blueGrey,
+            duration: const Duration(seconds: 3),
+          ));
+        } else {
+          final isForbidden = result.contains("403") || result.contains("forbidden") || result.contains("policy");
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(isForbidden 
+                ? "Security Policy Blocked: Ensure your SQL policy is active." 
+                : "Error: ${result.split(':').last.trim()}"),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 5),
+          ));
         }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4)]),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor, 
+          borderRadius: BorderRadius.circular(12), 
+          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)), 
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02), blurRadius: 4)]
+        ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 18),
@@ -1264,7 +1425,9 @@ class _StationDetailScreenState extends State<StationDetailScreen> {
   }
 
   Color _getIconColor(String line) {
-    if (line == 'MRT3') return Colors.black; // Better accessibility on yellow
+    if (line == 'MRT3') {
+      return Theme.of(context).brightness == Brightness.dark ? Colors.amber : Colors.black;
+    }
     return _getLineColor(line);
   }
 }
