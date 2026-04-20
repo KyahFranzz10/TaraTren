@@ -414,6 +414,7 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
   // ── Search Button ───────────────────────────────────────────────────────────
 
   Widget _buildSearchButton() {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final ready = _fromStation != null && _toStation != null;
     return SizedBox(
       width: double.infinity,
@@ -423,10 +424,10 @@ class _RoutePlannerScreenState extends State<RoutePlannerScreen>
         icon: const Icon(Icons.map_outlined),
         label: const Text('Find Best Route', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0D1B3E),
+          backgroundColor: isDark ? Colors.indigo : const Color(0xFF0D1B3E),
           foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade200,
-          disabledForegroundColor: Colors.grey.shade400,
+          disabledBackgroundColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade200,
+          disabledForegroundColor: isDark ? Colors.white24 : Colors.grey.shade400,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: ready ? 4 : 0,
         ),
