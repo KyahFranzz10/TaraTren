@@ -12,6 +12,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _auth = AuthService();
+  
+  // Local state for optimistic updates
+  final Map<String, dynamic> _optimisticData = {};
 
   final List<String> _futureLines = [
     'Metro Manila Subway (MMS)',
@@ -85,7 +88,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _StationPickerSheet(stations: metroStations),
     );
-    if (picked != null) await _auth.updateCommuterProfile(favStation: picked);
+    if (picked != null) {
+      setState(() => _optimisticData['fav_station'] = picked);
+      await _auth.updateCommuterProfile(favStation: picked);
+    }
+  }
+
+  Future<void> _updateField(String key, String value, Future<void> Function() updateFn) async {
+    setState(() => _optimisticData[key] = value);
+    try {
+      await updateFn();
+    } catch (e) {
+      // Revert on error
+      setState(() => _optimisticData.remove(key));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Update failed: $e')));
+    }
   }
 
   @override
@@ -112,10 +129,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: StreamBuilder<Map<String, dynamic>?>(
         stream: _auth.getProfileStream(),
         builder: (context, snapshot) {
-          final profileData = snapshot.data ?? {};
-          final favStation = profileData['fav_station'] ?? 'Loading...';
-          final futureLine = profileData['future_line_hype'] ?? 'Loading...';
-          final favTrainSet = profileData['fav_train_set'] ?? 'Loading...';
+          final dbData = snapshot.data ?? {};
+          
+          // Clear optimistic data if it matches the DB data (Sync complete)
+          _optimisticData.removeWhere((key, value) => dbData[key] == value);
+          
+          // Merge Database Data with Optimistic Local Data
+          final profileData = {...dbData, ..._optimisticData};
+          
+          final favStation = profileData['fav_station'] ?? (snapshot.connectionState == ConnectionState.waiting ? 'Loading...' : 'None');
+          final futureLine = profileData['future_line_hype'] ?? (snapshot.connectionState == ConnectionState.waiting ? 'Loading...' : 'None');
+          final favTrainSet = profileData['fav_train_set'] ?? (snapshot.connectionState == ConnectionState.waiting ? 'Loading...' : 'None');
 
           if (snapshot.connectionState == ConnectionState.waiting && snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
@@ -161,10 +185,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _prefCard(Icons.location_on, 'FAVORITE STATION', favStation, Colors.orange, _pickStation),
                         const SizedBox(height: 12),
                         _prefCard(Icons.rocket_launch, 'FUTURE LINE HYPE', futureLine, Colors.blueAccent, 
-                          () => _showListPicker(title: 'What line are you excited for?', items: _futureLines, onSave: (v) => _auth.updateCommuterProfile(futureLineHype: v))),
+                          () => _showListPicker(
+                            title: 'What line are you excited for?', 
+                            items: _futureLines, 
+                            onSave: (v) => _updateField('future_line_hype', v, () => _auth.updateCommuterProfile(futureLineHype: v))
+                          )),
                         const SizedBox(height: 12),
                         _prefCard(Icons.train, 'FAVORITE TRAIN SET', favTrainSet, Colors.teal, 
-                          () => _showListPicker(title: 'Pick Favorite Train Set', items: _trainSets, onSave: (v) => _auth.updateCommuterProfile(favTrainSet: v))),
+                          () => _showListPicker(
+                            title: 'Pick Favorite Train Set', 
+                            items: _trainSets, 
+                            onSave: (v) => _updateField('fav_train_set', v, () => _auth.updateCommuterProfile(favTrainSet: v))
+                          )),
                       ],
                     ),
                   ),
