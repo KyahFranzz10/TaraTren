@@ -86,11 +86,15 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Saved Routes', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0D1B3E),
+        backgroundColor: isDark ? Colors.black : const Color(0xFF0D1B3E),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: _errorMessage != null
           ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)))
@@ -98,18 +102,18 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: [
-                    _summaryHeader(_savedRoutes?.length ?? 0),
+                    _summaryHeader(context, _savedRoutes?.length ?? 0),
                     Expanded(
                       child: _savedRoutes!.isEmpty
                           ? _buildEmptyState()
-                          : _buildList(),
+                          : _buildList(context),
                     ),
                   ],
                 ),
     );
   }
 
-  Widget _summaryHeader(int count) {
+  Widget _summaryHeader(BuildContext context, int count) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),
@@ -174,7 +178,8 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
     );
   }
 
-  Widget _buildList() {
+  Widget _buildList(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return ListView.builder(
       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
       itemCount: _savedRoutes!.length,
@@ -184,9 +189,12 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
         
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 0,
+          color: isDark ? Theme.of(context).colorScheme.surfaceContainer : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+          ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             leading: Container(
@@ -200,7 +208,7 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
             ),
             title: Text(
               '${saved.fromStation} → ${saved.toStation}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : const Color(0xFF0F172A)),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,29 +248,34 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
   }
 
   void _showRouteDetails(SavedRoute saved) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF0F172A),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24),
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 24),
-                decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(2)),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          maxChildSize: 0.9,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) => ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(color: isDark ? Colors.white10 : Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                ),
               ),
-            ),
-            Text('${saved.fromStation} to ${saved.toStation}', 
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+              Text('${saved.fromStation} to ${saved.toStation}', 
+                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 20)),
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
@@ -297,7 +310,8 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildSummaryRow(PlannedRoute r) {
@@ -312,16 +326,18 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
   }
 
   Widget _summaryItem(IconData icon, String text) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Icon(icon, color: Colors.blueAccent, size: 20),
         const SizedBox(height: 4),
-        Text(text, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(text, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   Widget _buildMiniLeg(RouteLeg leg, int index, int total) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = index == total - 1;
     final color = leg.type == LegType.walk ? Colors.white38 : _getLineColor(leg.line);
 
@@ -352,11 +368,11 @@ class _SavedRoutesScreenState extends State<SavedRoutesScreen> {
                 ),
                 Text(
                   '${leg.fromStation} → ${leg.toStation}',
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 14),
                 ),
                 if (leg.stops > 0)
                   Text('${leg.stops} stops • ~${leg.estMinutes}m', 
-                    style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                    style: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade600, fontSize: 11)),
                 if (leg.transferNote != null)
                    Text(leg.transferNote!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
                 const SizedBox(height: 20),
